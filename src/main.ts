@@ -37,19 +37,15 @@ async function bootstrap() {
     app.set("view cache", false);
   }
 
-  app.useStaticAssets(join(__dirname, "..", "public"));
-
-  const srcDirectory = process.env.DEV
-    ? join(__dirname, "../..")
-    : join(__dirname, "..");
+  app.useStaticAssets("public");
 
   app.setViewEngine("hbs");
   app.engine(
     "hbs",
     create({
       extname: ".hbs",
-      layoutsDir: join(srcDirectory, "views/layouts"),
-      partialsDir: join(srcDirectory, "views/partials"),
+      layoutsDir: "views/layouts",
+      partialsDir: "views/partials",
       defaultLayout: "default",
     }).engine,
   );

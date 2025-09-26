@@ -9,14 +9,9 @@ import { V1Pod } from "@kubernetes/client-node";
 
 @Injectable()
 export class OfflineMatchesService {
-  private srcDirectory;
   private manifestsDirectory = `/pod-manifests`;
 
-  constructor(private readonly logger: Logger) {
-    this.srcDirectory = process.env.DEV
-      ? path.join(__dirname, "../..")
-      : path.join(__dirname, "..");
-  }
+  constructor(private readonly logger: Logger) {}
 
   public async getMatch(id: string): Promise<MatchData | undefined> {
     return this.getMatches().then(function (matches) {
@@ -72,10 +67,7 @@ export class OfflineMatchesService {
       fs.writeFileSync(
         path.join(this.manifestsDirectory, `${jobName}.yaml`),
         this.replacePlaceholders(
-          fs.readFileSync(
-            path.join(this.srcDirectory, "/resources/k8s/game-server-pod.yaml"),
-            "utf8",
-          ),
+          fs.readFileSync("./resources/k8s/game-server-pod.yaml", "utf8"),
           {
             POD_NAME: jobName,
             NAMESPACE: "5stack",

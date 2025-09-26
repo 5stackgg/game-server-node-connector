@@ -25,4 +25,4 @@ COPY --from=builder /build/dist ./dist
 COPY --from=builder /build/public ./public  
 COPY --from=builder /build/views ./views  
 
-CMD [ "node", "dist/src/main.js" ]
+CMD [ "node", "dist/main.js" ]
