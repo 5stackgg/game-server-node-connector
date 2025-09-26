@@ -217,4 +217,12 @@ export class KubeneretesService {
       threadsPerCore: parseInt(map["Thread(s) per core"], 10),
     };
   }
+
+  public async hasGameServerImage() {
+    const output = child_process.execSync(
+      `ctr -a /containerd.sock -n k8s.io images ls | grep -q 'ghcr.io/5stackgg/game-server:latest' && echo "true" || echo "false"`,
+      { encoding: "utf8" },
+    );
+    return output.trim() === "true";
+  }
 }
