@@ -15,7 +15,9 @@ import { BasicGuardGuard } from "./basic-guard.guard";
 
 @Controller()
 export class OfflineMatchesController {
-  constructor(private readonly offlineMatchesService: OfflineMatchesService) {}
+  constructor(
+    private readonly offlineMatchesService: OfflineMatchesService,
+  ) {}
 
   @Get()
   @UseGuards(BasicGuardGuard)

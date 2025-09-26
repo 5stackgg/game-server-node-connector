@@ -18,7 +18,7 @@ FROM node:22-alpine
 
 WORKDIR /opt/5stack
 
-RUN apk add --no-cache util-linux bash
+RUN apk add --no-cache util-linux bash containerd-ctr
 
 COPY --from=builder /build/node_modules ./node_modules
 COPY --from=builder /build/dist ./dist 
