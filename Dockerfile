@@ -24,5 +24,6 @@ COPY --from=builder /build/node_modules ./node_modules
 COPY --from=builder /build/dist ./dist 
 COPY --from=builder /build/public ./public  
 COPY --from=builder /build/views ./views  
+COPY --from=builder /build/resources ./resources  
 
 CMD [ "node", "dist/main.js" ]

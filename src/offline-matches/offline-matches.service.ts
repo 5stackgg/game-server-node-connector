@@ -85,12 +85,9 @@ export class OfflineMatchesService {
           },
         ),
       );
-      this.logger.log("started match", {
-        serverPort,
-        tvPort,
-      });
     } catch (error) {
       this.logger.error("Error generating YAML files:", error);
+      this.deleteMatch(matchData.id);
     }
   }
 
