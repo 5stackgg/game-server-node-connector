@@ -40,8 +40,8 @@ async function bootstrap() {
   app.useStaticAssets(join(__dirname, "..", "public"));
 
   const srcDirectory = process.env.DEV
-  ? join(__dirname, "../..")
-  : join(__dirname, "..");
+    ? join(__dirname, "../..")
+    : join(__dirname, "..");
 
   app.setViewEngine("hbs");
   app.engine(
