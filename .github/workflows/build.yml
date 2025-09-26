@@ -1,0 +1,66 @@
+name: ci
+
+on:
+  push:
+    branches:
+      - "main"
+  workflow_dispatch:
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        platform: [
+          linux/amd64,
+          linux/arm64
+        ]
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      - name: Log in to GitHub Docker Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Extract platform info
+        id: platform
+        run: echo "arch=$(echo ${{ matrix.platform }} | cut -d'/' -f2)" >> $GITHUB_OUTPUT
+      - name: Build container image
+        uses: docker/build-push-action@v6
+        with:
+          push: true
+          platforms: ${{ matrix.platform }}
+          cache-from: type=registry,ref=ghcr.io/${{ github.repository_owner }}/game-server-node-connector:buildcache-${{ steps.platform.outputs.arch }}
+          cache-to: type=registry,ref=ghcr.io/${{ github.repository_owner }}/game-server-node-connector:buildcache-${{ steps.platform.outputs.arch }},mode=max
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/game-server-node-connector:${{ github.sha }}-${{ steps.platform.outputs.arch }}
+            ghcr.io/${{ github.repository_owner }}/game-server-node-connector:latest-${{ steps.platform.outputs.arch }}
+  merge:
+    needs: docker
+    runs-on: ubuntu-latest
+    steps:
+      - name: Log in to GitHub Docker Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create manifest list and push
+        run: |
+          docker buildx imagetools create -t ghcr.io/${{ github.repository_owner }}/game-server-node-connector:latest \
+            ghcr.io/${{ github.repository_owner }}/game-server-node-connector:latest-amd64 \
+            # ghcr.io/${{ github.repository_owner }}/game-server-node-connector:latest-arm64
+          docker buildx imagetools create -t ghcr.io/${{ github.repository_owner }}/game-server-node-connector:${{ github.sha }} \
+            ghcr.io/${{ github.repository_owner }}/game-server-node-connector:${{ github.sha }}-amd64 \
+            # ghcr.io/${{ github.repository_owner }}/game-server-node-connector:${{ github.sha }}-arm64
+      - name: Delete Package Versions
+        uses: actions/delete-package-versions@v5.0.0
+        with:
+          package-name: game-server-node-connector
+          package-type: container
+          min-versions-to-keep: 8
+          ignore-versions: '^buildcache-*'

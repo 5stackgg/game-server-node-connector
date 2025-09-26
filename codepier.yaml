@@ -1,0 +1,7 @@
+namespaces: [5stack]
+image: node:22
+deployment: dev-game-server-node-connector
+sync:
+  - .:/opt/5stack
+ignore:
+  - "/dist"

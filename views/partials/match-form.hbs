@@ -1,0 +1,1478 @@
+<!-- Form Container -->
+<div class="bg-gray-800 rounded-xl shadow-lg p-8 mb-8">
+<form id="matchForm">
+    <input type="hidden" id="lineup1Id" name="lineup_1_id" />
+    <input type="hidden" id="lineup2Id" name="lineup_2_id" />
+    <!-- Basic Match Information -->
+    <div class="mb-8">
+    <h3
+        class="text-xl font-semibold text-gray-300 mb-4 pb-2 border-b-2 border-gray-600"
+    >
+        Basic Match Information
+    </h3>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+        <label class="block text-sm font-semibold text-gray-300 mb-2"
+            >Match ID</label
+        >
+        <input
+            type="text"
+            id="matchId"
+            name="id"
+            readonly
+            class="w-full p-3 border-2 border-gray-600 rounded-lg bg-gray-600 text-gray-300 cursor-not-allowed"
+        />
+        </div>
+        <div>
+        <label class="block text-sm font-semibold text-gray-300 mb-2"
+            >Server Password</label
+        >
+        <input
+            type="text"
+            id="password"
+            name="password"
+            value="525fafac-2572-437f-8d8a-f805b3e1f9e5"
+            class="w-full p-3 border-2 border-gray-600 rounded-lg bg-gray-700 text-gray-100 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-800"
+        />
+        </div>
+    </div>
+    </div>
+
+    <!-- Match Options -->
+    <div class="mb-8">
+    <h3
+        class="text-xl font-semibold text-gray-300 mb-4 pb-2 border-b-2 border-gray-600"
+    >
+        Match Options
+    </h3>
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+        <div class="checkbox-container">
+        <label class="custom-checkbox">
+            <input
+            type="checkbox"
+            id="overtime"
+            name="overtime"
+            checked
+            />
+            <span class="checkmark"></span>
+        </label>
+        <label for="overtime" class="checkbox-label"
+            >Enable Overtime</label
+        >
+        </div>
+        <div class="checkbox-container">
+        <label class="custom-checkbox">
+            <input
+            type="checkbox"
+            id="knifeRound"
+            name="knife_round"
+            checked
+            />
+            <span class="checkmark"></span>
+        </label>
+        <label for="knifeRound" class="checkbox-label"
+            >Knife Round</label
+        >
+        </div>
+        <div class="checkbox-container">
+        <label class="custom-checkbox">
+            <input type="checkbox" id="coaches" name="coaches" />
+            <span class="checkmark"></span>
+        </label>
+        <label for="coaches" class="checkbox-label"
+            >Allow Coaches</label
+        >
+        </div>
+    </div>
+    <div
+        class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4"
+    >
+        <div>
+        <label class="block text-sm font-semibold text-gray-300 mb-2"
+            >Max Rounds</label
+        >
+        <input
+            type="number"
+            id="mr"
+            name="mr"
+            value="8"
+            min="1"
+            max="30"
+            class="w-full p-3 border-2 border-gray-600 rounded-lg bg-gray-700 text-gray-100 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-800"
+        />
+        </div>
+        <div>
+        <label class="block text-sm font-semibold text-gray-300 mb-2"
+            >Match Type</label
+        >
+        <select
+            id="type"
+            name="type"
+            onchange="updatePlayerLimits()"
+            class="w-full p-3 border-2 border-gray-600 rounded-lg bg-gray-700 text-gray-100 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-800"
+        >
+            <option value="Competitive" selected>
+            Competitive (5 players per team)
+            </option>
+            <option value="Duel">Duel (2 players per team)</option>
+            <option value="Wingman">Wingman (1 player per team)</option>
+        </select>
+        </div>
+        <div>
+        <label class="block text-sm font-semibold text-gray-300 mb-2"
+            >Best Of</label
+        >
+        <select
+            id="bestOf"
+            name="best_of"
+            onchange="updateMapCount()"
+            class="w-full p-3 border-2 border-gray-600 rounded-lg bg-gray-700 text-gray-100 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-800"
+        >
+            <option value="1" selected>1</option>
+            <option value="3">3</option>
+            <option value="5">5</option>
+        </select>
+        </div>
+        <div>
+        <label class="block text-sm font-semibold text-gray-300 mb-2"
+            >TV Delay (seconds)</label
+        >
+        <input
+            type="number"
+            id="tvDelay"
+            name="tv_delay"
+            value="115"
+            min="0"
+            max="300"
+            class="w-full p-3 border-2 border-gray-600 rounded-lg bg-gray-700 text-gray-100 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-800"
+        />
+        </div>
+    </div>
+
+    <div
+        class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4"
+    >
+        <div>
+        <label class="block text-sm font-semibold text-gray-300 mb-2"
+            >Ready Setting</label
+        >
+        <select
+            id="readySetting"
+            name="ready_setting"
+            class="w-full p-3 border-2 border-gray-600 rounded-lg bg-gray-700 text-gray-100 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-800"
+        >
+            <option value="Admin" selected>Admin</option>
+            <option value="Captains">Captains</option>
+            <option value="Coach">Coach</option>
+            <option value="Players">Players</option>
+        </select>
+        </div>
+        <div>
+        <label class="block text-sm font-semibold text-gray-300 mb-2"
+            >Timeout Setting</label
+        >
+        <select
+            id="timeoutSetting"
+            name="timeout_setting"
+            class="w-full p-3 border-2 border-gray-600 rounded-lg bg-gray-700 text-gray-100 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-800"
+        >
+            <option value="Admin" selected>Admin</option>
+            <option value="Coach">Coach</option>
+            <option value="CoachAndCaptains">Coach and Captains</option>
+            <option value="CoachAndPlayers">Coach and Players</option>
+        </select>
+        </div>
+        <div>
+        <label class="block text-sm font-semibold text-gray-300 mb-2"
+            >Tech Timeout Setting</label
+        >
+        <select
+            id="techTimeoutSetting"
+            name="tech_timeout_setting"
+            class="w-full p-3 border-2 border-gray-600 rounded-lg bg-gray-700 text-gray-100 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-800"
+        >
+            <option value="Admin" selected>Admin</option>
+            <option value="Coach">Coach</option>
+            <option value="CoachAndCaptains">Coach and Captains</option>
+            <option value="CoachAndPlayers">Coach and Players</option>
+        </select>
+        </div>
+        <div>
+        <label class="block text-sm font-semibold text-gray-300 mb-2"
+            >Number of Substitutes</label
+        >
+        <input
+            type="number"
+            id="numberOfSubstitutes"
+            name="number_of_substitutes"
+            value="0"
+            min="0"
+            max="10"
+            class="w-full p-3 border-2 border-gray-600 rounded-lg bg-gray-700 text-gray-100 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-800"
+        />
+        </div>
+    </div>
+
+    <div>
+        <label class="block text-sm font-semibold text-gray-300 mb-2"
+        >CFG Override</label
+        >
+        <textarea
+        id="cfgOverride"
+        name="cfg_override"
+        rows="3"
+        placeholder="Custom server configuration commands..."
+        class="w-full p-3 border-2 border-gray-600 rounded-lg bg-gray-700 text-gray-100 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-800"
+        ></textarea>
+    </div>
+    </div>
+
+    <!-- Team 1 (Lineup 1) -->
+    <div class="mb-8">
+    <div class="flex justify-between items-center mb-4">
+        <h3
+            class="text-xl font-semibold text-gray-300 pb-2 border-b-2 border-gray-600"
+        >
+            Team 1
+        </h3>
+        <button
+            type="button"
+            onclick="swapTeams()"
+            class="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200 flex items-center gap-2"
+            title="Swap all players between Team 1 and Team 2"
+        >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
+            </svg>
+            Swap Teams
+        </button>
+    </div>
+    <div class="bg-gray-700 p-4 rounded-lg mb-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div>
+            <label class="block text-sm font-semibold text-gray-300 mb-2"
+            >Team Name</label
+            >
+            <input
+            type="text"
+            id="lineup1Name"
+            name="lineup_1_name"
+            value="Team 1"
+            class="w-full p-3 border-2 border-gray-600 rounded-lg bg-gray-800 text-gray-100 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-800"
+            />
+        </div>
+        <div>
+            <label class="block text-sm font-semibold text-gray-300 mb-2"
+            >Coach Steam ID</label
+            >
+            <input
+            type="text"
+            id="lineup1CoachSteamId"
+            name="lineup_1_coach_steam_id"
+            placeholder="Optional"
+            class="w-full p-3 border-2 border-gray-600 rounded-lg bg-gray-800 text-gray-100 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-800"
+            />
+        </div>
+        </div>
+
+        <div class="flex justify-between items-center mb-4">
+        <h4 class="text-lg font-medium text-gray-300">Players</h4>
+        <button
+            type="button"
+            onclick="addPlayer('team1')"
+            class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded text-sm transition-colors"
+        >
+            + Add Player
+        </button>
+        </div>
+
+        <div id="team1-players" class="space-y-3">
+        <!-- Initial player will be added by JavaScript -->
+        </div>
+    </div>
+    </div>
+
+    <!-- Team 2 (Lineup 2) -->
+    <div class="mb-8">
+    <h3
+        class="text-xl font-semibold text-gray-300 mb-4 pb-2 border-b-2 border-gray-600"
+    >
+        Team 2
+    </h3>
+    <div class="bg-gray-700 p-4 rounded-lg mb-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div>
+            <label class="block text-sm font-semibold text-gray-300 mb-2"
+            >Team Name</label
+            >
+            <input
+            type="text"
+            id="lineup2Name"
+            name="lineup_2_name"
+            value="Team 2"
+            class="w-full p-3 border-2 border-gray-600 rounded-lg bg-gray-800 text-gray-100 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-800"
+            />
+        </div>
+        <div>
+            <label class="block text-sm font-semibold text-gray-300 mb-2"
+            >Coach Steam ID</label
+            >
+            <input
+            type="text"
+            id="lineup2CoachSteamId"
+            name="lineup_2_coach_steam_id"
+            placeholder="Optional"
+            class="w-full p-3 border-2 border-gray-600 rounded-lg bg-gray-800 text-gray-100 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-800"
+            />
+        </div>
+        </div>
+
+        <div class="flex justify-between items-center mb-4">
+        <h4 class="text-lg font-medium text-gray-300">Players</h4>
+        <button
+            type="button"
+            onclick="addPlayer('team2')"
+            class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded text-sm transition-colors"
+        >
+            + Add Player
+        </button>
+        </div>
+
+        <div id="team2-players" class="space-y-3">
+        <!-- Initial player will be added by JavaScript -->
+        </div>
+    </div>
+    </div>
+
+    <!-- Match Maps -->
+    <div class="mb-8">
+    <h3
+        class="text-xl font-semibold text-gray-300 mb-4 pb-2 border-b-2 border-gray-600"
+    >
+        Match Maps
+    </h3>
+    <div class="bg-gray-700 p-4 rounded-lg mb-4">
+        <div class="flex justify-between items-center mb-4">
+        <h4 class="text-lg font-medium text-gray-300">Maps</h4>
+        <span id="map-count-display" class="text-sm text-gray-400"
+            >(Best of 1)</span
+        >
+        </div>
+
+        <div id="maps-container" class="space-y-4">
+        <!-- Initial map will be added by JavaScript -->
+        </div>
+    </div>
+    </div>
+
+    <!-- Buttons -->
+    <div class="flex gap-4 justify-center mt-8">
+    <button
+        type="button"
+        onclick="submitForm()"
+        class="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white px-8 py-3 rounded-lg font-semibold transition-all duration-300 hover:scale-105 hover:shadow-lg"
+        id="submitButton"
+    >
+        Start Match
+    </button>
+    </div>
+</form>
+
+<!-- JSON Output -->
+<div
+    id="jsonOutput"
+    class="hidden mt-4 p-4 bg-gray-900 text-gray-100 dark:text-gray-900 rounded-lg font-mono text-sm whitespace-pre-wrap overflow-x-auto border border-gray-700 dark:border-gray-300"
+></div>
+</div>
+
+<script>
+  // Toast notification system
+  function showToast(message, type = "error", duration = 5000) {
+    const container = document.getElementById("toast-container");
+    const toast = document.createElement("div");
+    toast.className = `toast ${type}`;
+
+    const icon = type === "success" ? "✓" : type === "warning" ? "⚠" : "✕";
+
+    toast.innerHTML = `
+      <div class="toast-content">
+        <span class="toast-icon">${icon}</span>
+        <span class="toast-message">${message}</span>
+        <button class="toast-close" onclick="closeToast(this)">×</button>
+      </div>
+    `;
+
+    container.appendChild(toast);
+
+    // Trigger animation
+    setTimeout(() => toast.classList.add("show"), 100);
+
+    // Auto remove after duration
+    setTimeout(() => {
+      if (toast.parentNode) {
+        closeToast(toast.querySelector(".toast-close"));
+      }
+    }, duration);
+  }
+
+  function closeToast(button) {
+    const toast = button.closest(".toast");
+    toast.classList.remove("show");
+    setTimeout(() => {
+      if (toast.parentNode) {
+        toast.parentNode.removeChild(toast);
+      }
+    }, 300);
+  }
+
+  // Form validation functions
+  function validateForm() {
+    const errors = [];
+    const form = document.getElementById("matchForm");
+
+    // Clear previous error states
+    clearFieldErrors();
+
+    // Validate team names
+    const team1Name = document.getElementById("lineup1Name").value.trim();
+    const team2Name = document.getElementById("lineup2Name").value.trim();
+
+    if (!team1Name) {
+      errors.push("Team 1 name is required");
+      highlightField("lineup1Name", "Team 1 name is required");
+    }
+
+    if (!team2Name) {
+      errors.push("Team 2 name is required");
+      highlightField("lineup2Name", "Team 2 name is required");
+    }
+
+    if (team1Name && team2Name && team1Name === team2Name) {
+      errors.push("Team names must be different");
+      highlightField("lineup1Name", "Team names must be different");
+      highlightField("lineup2Name", "Team names must be different");
+    }
+
+    // Validate players
+    const team1Players = validateTeamPlayers("team1", "Team 1");
+    const team2Players = validateTeamPlayers("team2", "Team 2");
+
+    errors.push(...team1Players);
+    errors.push(...team2Players);
+
+    // Validate maps
+    const mapErrors = validateMaps();
+    errors.push(...mapErrors);
+
+    // Validate captains
+    const captainErrors = validateCaptains();
+    errors.push(...captainErrors);
+
+    return errors;
+  }
+
+  function validateTeamPlayers(teamId, teamName) {
+    const errors = [];
+    const container = document.getElementById(teamId + "-players");
+    const playerRows = container.querySelectorAll(".player-row");
+    const matchType = document.getElementById("type").value;
+
+    // Calculate required players based on match type
+    let requiredPlayers;
+    switch (matchType) {
+      case "Competitive":
+        requiredPlayers = 5;
+        break;
+      case "Duel":
+        requiredPlayers = 2;
+        break;
+      case "Wingman":
+        requiredPlayers = 1;
+        break;
+      default:
+        requiredPlayers = 5;
+    }
+
+    // Check if we have enough players
+    if (playerRows.length < requiredPlayers) {
+      errors.push(`${teamName} needs at least ${requiredPlayers} players`);
+    }
+
+    // Validate each player's Steam ID
+    playerRows.forEach((row, index) => {
+      const steamIdInput = row.querySelector(
+        'input[name*="player_steam_id"]',
+      );
+      const steamId = steamIdInput.value.trim();
+
+      if (!steamId) {
+        errors.push(
+          `${teamName} Player ${index + 1}: Steam ID is required`,
+        );
+        highlightField(steamIdInput, "Steam ID is required");
+      } else if (!isValidSteamId(steamId)) {
+        errors.push(
+          `${teamName} Player ${index + 1}: Invalid Steam ID format`,
+        );
+        highlightField(steamIdInput, "Invalid Steam ID format");
+      }
+    });
+
+    return errors;
+  }
+
+  function validateMaps() {
+    const errors = [];
+    const container = document.getElementById("maps-container");
+    const mapRows = container.querySelectorAll(".map-row");
+
+    if (mapRows.length === 0) {
+      errors.push("At least one map is required");
+      return errors;
+    }
+
+    mapRows.forEach((row, index) => {
+      const mapNameInput = row.querySelector('input[name="map_name[]"]');
+      const mapName = mapNameInput.value.trim();
+
+      if (!mapName) {
+        errors.push(`Map ${index + 1}: Map name is required`);
+        highlightField(mapNameInput, "Map name is required");
+      }
+    });
+
+    return errors;
+  }
+
+  function validateCaptains() {
+    const errors = [];
+
+    // Check Team 1 captain
+    const team1Captain = document.querySelector(
+      'input[name="lineup_1_captain"]:checked',
+    );
+    if (!team1Captain) {
+      errors.push("Team 1 must have a captain selected");
+    }
+
+    // Check Team 2 captain
+    const team2Captain = document.querySelector(
+      'input[name="lineup_2_captain"]:checked',
+    );
+    if (!team2Captain) {
+      errors.push("Team 2 must have a captain selected");
+    }
+
+    return errors;
+  }
+
+  function isValidSteamId(steamId) {
+    // Steam ID validation - can be Steam64 ID (17 digits) or Steam ID format
+    const steam64Regex = /^[0-9]{17}$/;
+    const steamIdRegex = /^STEAM_[0-5]:[01]:[0-9]+$/;
+    return steam64Regex.test(steamId) || steamIdRegex.test(steamId);
+  }
+
+  function highlightField(fieldId, message) {
+    const field =
+      typeof fieldId === "string"
+        ? document.getElementById(fieldId)
+        : fieldId;
+    if (!field) return;
+
+    field.classList.add("field-error");
+
+    // Remove existing error message
+    const existingError = field.parentNode.querySelector(".error-message");
+    if (existingError) {
+      existingError.remove();
+    }
+
+    // Add error message
+    const errorDiv = document.createElement("span");
+    errorDiv.className = "error-message";
+    errorDiv.textContent = message;
+    field.parentNode.appendChild(errorDiv);
+
+    // Remove error state on input
+    field.addEventListener(
+      "input",
+      function () {
+        this.classList.remove("field-error");
+        const errorMsg = this.parentNode.querySelector(".error-message");
+        if (errorMsg) {
+          errorMsg.remove();
+        }
+      },
+      { once: true },
+    );
+  }
+
+  function clearFieldErrors() {
+    // Remove all error classes and messages
+    document.querySelectorAll(".field-error").forEach((field) => {
+      field.classList.remove("field-error");
+    });
+
+    document.querySelectorAll(".error-message").forEach((error) => {
+      error.remove();
+    });
+  }
+
+  // Generate UUID function
+  function generateUUID() {
+    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(
+      /[xy]/g,
+      function (c) {
+        const r = (Math.random() * 16) | 0;
+        const v = c == "x" ? r : (r & 0x3) | 0x8;
+        return v.toString(16);
+      },
+    );
+  }
+
+  // Function to populate form with match data
+  function populateFormWithMatchData(matchData) {
+    if (!matchData) return;
+
+    // Basic match information
+    document.getElementById("matchId").value = matchData.id || generateUUID();
+    document.getElementById("password").value = matchData.password || "525fafac-2572-437f-8d8a-f805b3e1f9e5";
+
+    // Match options
+    document.getElementById("overtime").checked = matchData.options?.overtime || true;
+    document.getElementById("knifeRound").checked = matchData.options?.knife_round || true;
+    document.getElementById("coaches").checked = matchData.options?.coaches || false;
+    document.getElementById("mr").value = matchData.options?.mr || 8;
+    document.getElementById("type").value = matchData.options?.type || "Competitive";
+    document.getElementById("bestOf").value = matchData.options?.best_of || 1;
+    document.getElementById("tvDelay").value = matchData.options?.tv_delay || 115;
+    document.getElementById("readySetting").value = matchData.options?.ready_setting || "Admin";
+    document.getElementById("timeoutSetting").value = matchData.options?.timeout_setting || "Admin";
+    document.getElementById("techTimeoutSetting").value = matchData.options?.tech_timeout_setting || "Admin";
+    document.getElementById("numberOfSubstitutes").value = matchData.options?.number_of_substitutes || 0;
+    document.getElementById("cfgOverride").value = matchData.options?.cfg_override || "";
+
+    // Team information
+    document.getElementById("lineup1Id").value = matchData.lineup_1_id || generateUUID();
+    document.getElementById("lineup1Name").value = matchData.lineup_1?.name || "Team 1";
+    document.getElementById("lineup1CoachSteamId").value = matchData.lineup_1?.coach_steam_id || "";
+
+    document.getElementById("lineup2Id").value = matchData.lineup_2_id || generateUUID();
+    document.getElementById("lineup2Name").value = matchData.lineup_2?.name || "Team 2";
+    document.getElementById("lineup2CoachSteamId").value = matchData.lineup_2?.coach_steam_id || "";
+
+    // Clear existing players and maps
+    document.getElementById("team1-players").innerHTML = "";
+    document.getElementById("team2-players").innerHTML = "";
+    document.getElementById("maps-container").innerHTML = "";
+
+    // Populate team 1 players
+    if (matchData.lineup_1?.lineup_players) {
+      matchData.lineup_1.lineup_players.forEach((player, index) => {
+        addPlayer("team1");
+        const playerRow = document.getElementById("team1-players").lastElementChild;
+        const steamIdInput = playerRow.querySelector('input[name*="player_steam_id"]');
+        const nameInput = playerRow.querySelector('input[name*="player_name"]');
+        const captainRadio = playerRow.querySelector('input[name*="captain"]');
+        const gaggedCheckbox = playerRow.querySelector('input[name*="gagged"]');
+        const mutedCheckbox = playerRow.querySelector('input[name*="muted"]');
+
+        if (steamIdInput) steamIdInput.value = player.steam_id || "";
+        if (nameInput) nameInput.value = player.name || "";
+        if (captainRadio && player.captain) captainRadio.checked = true;
+        if (gaggedCheckbox) gaggedCheckbox.checked = player.is_gagged || false;
+        if (mutedCheckbox) mutedCheckbox.checked = player.is_muted || false;
+      });
+    }
+
+    // Populate team 2 players
+    if (matchData.lineup_2?.lineup_players) {
+      matchData.lineup_2.lineup_players.forEach((player, index) => {
+        addPlayer("team2");
+        const playerRow = document.getElementById("team2-players").lastElementChild;
+        const steamIdInput = playerRow.querySelector('input[name*="player_steam_id"]');
+        const nameInput = playerRow.querySelector('input[name*="player_name"]');
+        const captainRadio = playerRow.querySelector('input[name*="captain"]');
+        const gaggedCheckbox = playerRow.querySelector('input[name*="gagged"]');
+        const mutedCheckbox = playerRow.querySelector('input[name*="muted"]');
+
+        if (steamIdInput) steamIdInput.value = player.steam_id || "";
+        if (nameInput) nameInput.value = player.name || "";
+        if (captainRadio && player.captain) captainRadio.checked = true;
+        if (gaggedCheckbox) gaggedCheckbox.checked = player.is_gagged || false;
+        if (mutedCheckbox) mutedCheckbox.checked = player.is_muted || false;
+      });
+    }
+
+    // Populate maps
+    if (matchData.match_maps) {
+      matchData.match_maps.forEach((mapData, index) => {
+        addMap();
+        const mapRow = document.getElementById("maps-container").lastElementChild;
+        const mapIdInput = mapRow.querySelector('input[name="map_id[]"]');
+        const mapNameInput = mapRow.querySelector('input[name="map_name[]"]');
+        const workshopMapIdInput = mapRow.querySelector('input[name="workshop_map_id[]"]');
+        const mapOrderInput = mapRow.querySelector('input[name="map_order[]"]');
+        const mapStatusInput = mapRow.querySelector('input[name="map_status[]"]');
+        const lineup1SideSelect = mapRow.querySelector('select[name="lineup_1_side[]"]');
+        const lineup2SideSelect = mapRow.querySelector('select[name="lineup_2_side[]"]');
+
+        if (mapIdInput) mapIdInput.value = mapData.id || generateUUID();
+        if (mapNameInput) mapNameInput.value = mapData.map?.name || "";
+        if (workshopMapIdInput) workshopMapIdInput.value = mapData.map?.workshop_map_id || "";
+        if (mapOrderInput) mapOrderInput.value = mapData.order || index + 1;
+        if (mapStatusInput) mapStatusInput.value = mapData.status || "Warmup";
+        if (lineup1SideSelect) lineup1SideSelect.value = mapData.lineup_1_side || "CT";
+        if (lineup2SideSelect) lineup2SideSelect.value = mapData.lineup_2_side || "TERRORIST";
+      });
+    }
+
+    // Update form state
+    updatePlayerLimits();
+    updateMapCount();
+    updateRemoveButtonVisibility();
+  }
+
+  // Generate UUIDs on page load
+  document.addEventListener("DOMContentLoaded", function () {
+    // Check if we have match data to populate
+    const matchData = {{#if matchJson}}JSON.parse(`{{{matchJson}}}`){{else}}null{{/if}};
+    
+    if (matchData) {
+      // Populate form with existing match data
+      populateFormWithMatchData(matchData);
+      // Update button text for editing
+      document.getElementById("submitButton").textContent = "Update Match";
+    } else {
+      // Initialize new match form
+      document.getElementById("matchId").value = generateUUID();
+      document.getElementById("lineup1Id").value = generateUUID();
+      document.getElementById("lineup2Id").value = generateUUID();
+      addMap();
+      updatePlayerLimits();
+      updateMapCount();
+      updateRemoveButtonVisibility();
+      // Keep button text as "Start Match" for new matches
+    }
+
+    // Add event listeners for changes that affect player limits
+    document
+      .getElementById("numberOfSubstitutes")
+      .addEventListener("change", updatePlayerLimits);
+    document
+      .getElementById("type")
+      .addEventListener("change", updatePlayerLimits);
+  });
+
+  // Player management functions
+  function addPlayer(teamId) {
+    const container = document.getElementById(teamId + "-players");
+    const playerCount = container.children.length;
+    const matchType = document.getElementById("type").value;
+    const numberOfSubstitutes =
+      parseInt(document.getElementById("numberOfSubstitutes").value) || 0;
+
+    // Check player limits based on match type + substitutes
+    let maxPlayers;
+    switch (matchType) {
+      case "Competitive":
+        maxPlayers = 5 + numberOfSubstitutes;
+        break;
+      case "Duel":
+        maxPlayers = 2 + numberOfSubstitutes;
+        break;
+      case "Wingman":
+        maxPlayers = 1 + numberOfSubstitutes;
+        break;
+      default:
+        maxPlayers = 5 + numberOfSubstitutes;
+    }
+
+    if (playerCount >= maxPlayers) {
+      return; // Don't add if at maximum players
+    }
+
+    // Check if this is the first player for this team (should be captain by default)
+    const isFirstPlayer = playerCount === 0;
+
+    const newPlayerRow = document.createElement("div");
+
+    let minPlayers;
+    switch (matchType) {
+      case "Competitive":
+        minPlayers = 5;
+        break;
+      case "Duel":
+        minPlayers = 2;
+        break;
+      case "Wingman":
+        minPlayers = 1;
+        break;
+      default:
+        minPlayers = 5;
+    }
+
+    const isSubstitute = playerCount >= minPlayers;
+    newPlayerRow.className = `player-row bg-gray-700 p-4 rounded-lg mb-3 ${isSubstitute ? "substitute-player" : "required-player"}`;
+    newPlayerRow.innerHTML = `
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-300 mb-2">Steam ID</label>
+                        <input 
+                            type="text" 
+                            name="lineup_${teamId === "team1" ? "1" : "2"}_player_steam_id[]" 
+                            placeholder="Steam ID"
+                            class="w-full p-3 border-2 border-gray-600 rounded-lg bg-gray-800 text-gray-100 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-800"
+                        >
+                    </div>
+                    <div class="checkbox-container">
+                        <label class="custom-checkbox">
+                            <input type="radio" id="lineup_${teamId === "team1" ? "1" : "2"}_captain_${playerCount}" name="lineup_${teamId === "team1" ? "1" : "2"}_captain" value="${playerCount}" ${isFirstPlayer ? 'checked' : ''}>
+                            <span class="checkmark"></span>
+                        </label>
+                        <label for="lineup_${teamId === "team1" ? "1" : "2"}_captain_${playerCount}" class="checkbox-label text-xs">Captain</label>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-300 mb-2">Name</label>
+                    <input 
+                        type="text" 
+                        name="lineup_${teamId === "team1" ? "1" : "2"}_player_name[]" 
+                        placeholder="Optional"
+                        class="w-full p-3 border-2 border-gray-600 rounded-lg bg-gray-800 text-gray-100 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-800"
+                    >
+                </div>
+                <div class="flex flex-col justify-start space-y-3">
+                    <div class="flex space-x-4 items-center" style="height: 3rem; margin-top: 2rem;">
+                        <div class="checkbox-container">
+                            <label class="custom-checkbox">
+                                <input type="checkbox" id="lineup_${teamId === "team1" ? "1" : "2"}_player_gagged_${playerCount}" name="lineup_${teamId === "team1" ? "1" : "2"}_player_gagged[]" value="true">
+                                <span class="checkmark"></span>
+                            </label>
+                            <label for="lineup_${teamId === "team1" ? "1" : "2"}_player_gagged_${playerCount}" class="checkbox-label">Gagged</label>
+                        </div>
+                        <div class="checkbox-container">
+                            <label class="custom-checkbox">
+                                <input type="checkbox" id="lineup_${teamId === "team1" ? "1" : "2"}_player_muted_${playerCount}" name="lineup_${teamId === "team1" ? "1" : "2"}_player_muted[]" value="true">
+                                <span class="checkmark"></span>
+                            </label>
+                            <label for="lineup_${teamId === "team1" ? "1" : "2"}_player_muted_${playerCount}" class="checkbox-label">Muted</label>
+                        </div>
+                    </div>
+                    <div class="mt-auto">
+                        <button type="button" onclick="removePlayer(this)" class="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded text-sm transition-colors w-full remove-player-btn">
+                            Remove
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    container.appendChild(newPlayerRow);
+    updateRemoveButtonVisibility();
+  }
+
+  function removePlayer(button) {
+    const container = button.closest("#team1-players, #team2-players");
+    if (container.children.length <= 1) {
+      return; // Don't remove if only one player left
+    }
+    button.closest(".player-row").remove();
+    updateRemoveButtonVisibility();
+  }
+
+  function updatePlayerLimits() {
+    const matchType = document.getElementById("type").value;
+    const numberOfSubstitutes =
+      parseInt(document.getElementById("numberOfSubstitutes").value) || 0;
+
+    let minPlayers, maxPlayers;
+    switch (matchType) {
+      case "Competitive":
+        minPlayers = 5;
+        maxPlayers = 5 + numberOfSubstitutes;
+        break;
+      case "Duel":
+        minPlayers = 2;
+        maxPlayers = 2 + numberOfSubstitutes;
+        break;
+      case "Wingman":
+        minPlayers = 1;
+        maxPlayers = 1 + numberOfSubstitutes;
+        break;
+      default:
+        minPlayers = 5;
+        maxPlayers = 5 + numberOfSubstitutes;
+    }
+
+    // Ensure each team has the correct number of players
+    document
+      .querySelectorAll("#team1-players, #team2-players")
+      .forEach((container) => {
+        const teamId = container.id.replace("-players", "");
+        const currentPlayerCount = container.children.length;
+
+        if (currentPlayerCount < minPlayers) {
+          // Add players if below minimum
+          for (let i = currentPlayerCount; i < minPlayers; i++) {
+            addPlayer(teamId);
+          }
+        } else if (currentPlayerCount > maxPlayers) {
+          // Remove players if above maximum
+          const playersToRemove = currentPlayerCount - maxPlayers;
+          for (let i = 0; i < playersToRemove; i++) {
+            const lastPlayer = container.lastElementChild;
+            if (lastPlayer) {
+              lastPlayer.remove();
+            }
+          }
+        }
+      });
+
+    // Update add player buttons
+    document
+      .querySelectorAll('[onclick*="addPlayer"]')
+      .forEach((button) => {
+        button.textContent = `+ Add Substitute (Max: ${maxPlayers})`;
+      });
+
+    updateRemoveButtonVisibility();
+  }
+
+  function updateRemoveButtonVisibility() {
+    const matchType = document.getElementById("type").value;
+    const numberOfSubstitutes =
+      parseInt(document.getElementById("numberOfSubstitutes").value) || 0;
+
+    // Calculate minimum and maximum players based on match type
+    let minPlayers, maxPlayers;
+    switch (matchType) {
+      case "Competitive":
+        minPlayers = 5;
+        maxPlayers = 5 + numberOfSubstitutes;
+        break;
+      case "Duel":
+        minPlayers = 2;
+        maxPlayers = 2 + numberOfSubstitutes;
+        break;
+      case "Wingman":
+        minPlayers = 1;
+        maxPlayers = 1 + numberOfSubstitutes;
+        break;
+      default:
+        minPlayers = 5;
+        maxPlayers = 5 + numberOfSubstitutes;
+    }
+
+    // Update player classes and remove buttons
+    document
+      .querySelectorAll("#team1-players, #team2-players")
+      .forEach((container) => {
+        const playerRows = container.querySelectorAll(".player-row");
+
+        playerRows.forEach((row, index) => {
+          const isSubstitute = index >= minPlayers;
+
+          // Update class to reflect player type
+          row.classList.remove("required-player", "substitute-player");
+          row.classList.add(
+            isSubstitute ? "substitute-player" : "required-player",
+          );
+
+          // Show/hide remove button based on player type
+          const removeButton = row.querySelector(".remove-player-btn");
+          if (removeButton) {
+            removeButton.style.display = isSubstitute ? "block" : "none";
+          }
+        });
+      });
+  }
+
+  function swapTeams() {
+    // Get team containers
+    const team1Container = document.getElementById("team1-players");
+    const team2Container = document.getElementById("team2-players");
+    
+    // Get team names
+    const team1Name = document.getElementById("lineup1Name").value;
+    const team2Name = document.getElementById("lineup2Name").value;
+    
+    // Get coach Steam IDs
+    const team1Coach = document.getElementById("lineup1CoachSteamId").value;
+    const team2Coach = document.getElementById("lineup2CoachSteamId").value;
+    
+    // Store current team data
+    const team1Players = Array.from(team1Container.children);
+    const team2Players = Array.from(team2Container.children);
+    
+    // Clear both containers
+    team1Container.innerHTML = "";
+    team2Container.innerHTML = "";
+    
+    // Swap team names
+    document.getElementById("lineup1Name").value = team2Name;
+    document.getElementById("lineup2Name").value = team1Name;
+    
+    // Swap coach Steam IDs
+    document.getElementById("lineup1CoachSteamId").value = team2Coach;
+    document.getElementById("lineup2CoachSteamId").value = team1Coach;
+    
+    // Move players to opposite teams
+    team1Players.forEach(playerRow => {
+      // Update all form field names from team1 to team2
+      updatePlayerRowTeam(playerRow, "team1", "team2");
+      team2Container.appendChild(playerRow);
+    });
+    
+    team2Players.forEach(playerRow => {
+      // Update all form field names from team2 to team1
+      updatePlayerRowTeam(playerRow, "team2", "team1");
+      team1Container.appendChild(playerRow);
+    });
+    
+    // Update remove button visibility after swap
+    updateRemoveButtonVisibility();
+    
+    // Show success message
+    showToast("Teams swapped successfully!", "success", 3000);
+  }
+  
+  function updatePlayerRowTeam(playerRow, fromTeam, toTeam) {
+    const fromTeamNum = fromTeam === "team1" ? "1" : "2";
+    const toTeamNum = toTeam === "team1" ? "1" : "2";
+    
+    // Update all input names
+    const inputs = playerRow.querySelectorAll('input, select');
+    inputs.forEach(input => {
+      if (input.name) {
+        input.name = input.name.replace(`lineup_${fromTeamNum}_`, `lineup_${toTeamNum}_`);
+      }
+      if (input.id) {
+        input.id = input.id.replace(`lineup_${fromTeamNum}_`, `lineup_${toTeamNum}_`);
+      }
+    });
+    
+    // Update all label for attributes
+    const labels = playerRow.querySelectorAll('label[for]');
+    labels.forEach(label => {
+      if (label.getAttribute('for')) {
+        label.setAttribute('for', label.getAttribute('for').replace(`lineup_${fromTeamNum}_`, `lineup_${toTeamNum}_`));
+      }
+    });
+  }
+
+  // Map management functions
+  function addMap() {
+    const container = document.getElementById("maps-container");
+    const mapCount = container.children.length;
+
+    const newMapRow = document.createElement("div");
+    newMapRow.className = "map-row bg-gray-800 p-4 rounded-lg";
+    newMapRow.innerHTML = `
+            <!-- Hidden Map ID field with auto-generated UUID -->
+            <input type="hidden" name="map_id[]" value="${generateUUID()}">
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+                <div>
+                    <label class="block text-sm font-semibold text-gray-300 mb-2">Map Name</label>
+                    <input 
+                        type="text" 
+                        name="map_name[]" 
+                        placeholder="e.g., de_dust2"
+                        class="w-full p-3 border-2 border-gray-600 rounded-lg bg-gray-700 text-gray-100 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-800"
+                    >
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-300 mb-2">Workshop Map ID</label>
+                    <input 
+                        type="text" 
+                        name="workshop_map_id[]" 
+                        placeholder="Optional"
+                        class="w-full p-3 border-2 border-gray-600 rounded-lg bg-gray-700 text-gray-100 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-800"
+                    >
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-300 mb-2">Map Order</label>
+                    <input 
+                        type="number" 
+                        name="map_order[]" 
+                        value="${mapCount + 1}" 
+                        min="1"
+                        class="w-full p-3 border-2 border-gray-600 rounded-lg bg-gray-700 text-gray-100 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-800"
+                    >
+                </div>
+            </div>
+            <!-- Hidden Map Status field with default value -->
+            <input type="hidden" name="map_status[]" value="Warmup">
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-sm font-semibold text-gray-300 mb-2">Team 1 Side</label>
+                    <select 
+                        name="lineup_1_side[]"
+                        class="w-full p-3 border-2 border-gray-600 rounded-lg bg-gray-700 text-gray-100 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-800"
+                    >
+                        <option value="CT" selected>CT</option>
+                        <option value="TERRORIST">TERRORIST</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-300 mb-2">Team 2 Side</label>
+                    <select 
+                        name="lineup_2_side[]"
+                        class="w-full p-3 border-2 border-gray-600 rounded-lg bg-gray-700 text-gray-100 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-800"
+                    >
+                        <option value="TERRORIST" selected>TERRORIST</option>
+                        <option value="CT">CT</option>
+                    </select>
+                </div>
+            </div>
+        `;
+    container.appendChild(newMapRow);
+    updateMapOrderNumbers();
+    updateMapCountDisplay();
+    updateRemoveButtonVisibility();
+  }
+
+  function updateMapCount() {
+    const bestOf = parseInt(document.getElementById("bestOf").value);
+    const container = document.getElementById("maps-container");
+    const currentMapCount = container.children.length;
+
+    // Calculate required number of maps based on best of
+    // Best of 1 = 1 map, Best of 3 = 3 maps, Best of 5 = 5 maps
+    const requiredMaps = bestOf;
+
+    if (currentMapCount < requiredMaps) {
+      // Add maps if we need more
+      for (let i = currentMapCount; i < requiredMaps; i++) {
+        addMap();
+      }
+    } else if (currentMapCount > requiredMaps) {
+      // Remove maps if we have too many (but keep at least 1)
+      const mapsToRemove = Math.min(
+        currentMapCount - requiredMaps,
+        currentMapCount - 1,
+      );
+      for (let i = 0; i < mapsToRemove; i++) {
+        const lastMap = container.lastElementChild;
+        if (lastMap) {
+          lastMap.remove();
+        }
+      }
+    }
+
+    // Update map order numbers
+    updateMapOrderNumbers();
+
+    // Update display
+    updateMapCountDisplay();
+
+    // Update remove button visibility
+    updateRemoveButtonVisibility();
+  }
+
+  function updateMapCountDisplay() {
+    const bestOf = parseInt(document.getElementById("bestOf").value);
+    const container = document.getElementById("maps-container");
+    const currentMapCount = container.children.length;
+    const display = document.getElementById("map-count-display");
+
+    display.textContent = `(Best of ${bestOf})`;
+  }
+
+  function updateMapOrderNumbers() {
+    const container = document.getElementById("maps-container");
+    const mapRows = container.children;
+
+    for (let i = 0; i < mapRows.length; i++) {
+      const orderInput = mapRows[i].querySelector(
+        'input[name="map_order[]"]',
+      );
+      if (orderInput) {
+        orderInput.value = i + 1;
+      }
+    }
+  }
+
+  function generateJSON() {
+    const form = document.getElementById("matchForm");
+    const formData = new FormData(form);
+
+    // Get global timeout values
+    const lineup1Timeouts =
+      parseInt(formData.get("lineup_1_timeouts_available")) || 2;
+    const lineup2Timeouts =
+      parseInt(formData.get("lineup_2_timeouts_available")) || 2;
+
+    // Build match maps array
+    const mapIds = formData.getAll("map_id[]");
+    const mapNames = formData.getAll("map_name[]");
+    const workshopMapIds = formData.getAll("workshop_map_id[]");
+    const mapOrders = formData.getAll("map_order[]");
+    const mapStatuses = formData.getAll("map_status[]");
+    const lineup1Sides = formData.getAll("lineup_1_side[]");
+    const lineup2Sides = formData.getAll("lineup_2_side[]");
+
+    const matchMaps = mapIds.map((mapId, index) => ({
+      id: mapId,
+      map: {
+        name: mapNames[index] || "",
+        workshop_map_id: workshopMapIds[index] || null,
+      },
+      rounds: [],
+      order: parseInt(mapOrders[index]) || index + 1,
+      status: mapStatuses[index] || "Warmup",
+      lineup_1_side: lineup1Sides[index] || "CT",
+      lineup_2_side: lineup2Sides[index] || "TERRORIST",
+      lineup_1_timeouts_available: lineup1Timeouts,
+      lineup_2_timeouts_available: lineup2Timeouts,
+    }));
+
+    // Build lineup players arrays
+    const lineup1SteamIds = formData.getAll("lineup_1_player_steam_id[]");
+    const lineup1Names = formData.getAll("lineup_1_player_name[]");
+    const lineup1Captains = formData.getAll("lineup_1_captain");
+    const lineup1Gagged = formData.getAll("lineup_1_player_gagged[]");
+    const lineup1Muted = formData.getAll("lineup_1_player_muted[]");
+
+    const lineup2SteamIds = formData.getAll("lineup_2_player_steam_id[]");
+    const lineup2Names = formData.getAll("lineup_2_player_name[]");
+    const lineup2Captains = formData.getAll("lineup_2_captain");
+    const lineup2Gagged = formData.getAll("lineup_2_player_gagged[]");
+    const lineup2Muted = formData.getAll("lineup_2_player_muted[]");
+
+    const lineup1Players = lineup1SteamIds.map((steamId, index) => ({
+      captain: lineup1Captains.includes(index.toString()),
+      steam_id: steamId,
+      match_lineup_id: formData.get("lineup_1_id"),
+      placeholder_name: null,
+      name: lineup1Names[index] || null, // Player names are optional
+      is_banned: false,
+      is_gagged: lineup1Gagged.includes("true"),
+      is_muted: lineup1Muted.includes("true"),
+    }));
+
+    const lineup2Players = lineup2SteamIds.map((steamId, index) => ({
+      captain: lineup2Captains.includes(index.toString()),
+      steam_id: steamId,
+      match_lineup_id: formData.get("lineup_2_id"),
+      placeholder_name: null,
+      name: lineup2Names[index] || null, // Player names are optional
+      is_banned: false,
+      is_gagged: lineup2Gagged.includes("true"),
+      is_muted: lineup2Muted.includes("true"),
+    }));
+
+    // Build the JSON structure
+    const matchData = {
+      id: formData.get("id"),
+      password: formData.get("password"),
+      lineup_1_id: formData.get("lineup_1_id"),
+      lineup_2_id: formData.get("lineup_2_id"),
+      current_match_map_id: matchMaps[0]?.id || "",
+      options: {
+        mr: parseInt(formData.get("mr")) || 8,
+        type: formData.get("type") || "Competitive",
+        best_of: parseInt(formData.get("best_of")) || 1,
+        coaches: formData.get("coaches") === "on",
+        overtime: formData.get("overtime") === "on",
+        tv_delay: parseInt(formData.get("tv_delay")) || 115,
+        knife_round: formData.get("knife_round") === "on",
+        ready_setting: formData.get("ready_setting") || "Players",
+        timeout_setting:
+          formData.get("timeout_setting") || "CoachAndPlayers",
+        tech_timeout_setting:
+          formData.get("tech_timeout_setting") || "Admin",
+        number_of_substitutes:
+          parseInt(formData.get("number_of_substitutes")) || 0,
+        cfg_override: formData.get("cfg_override") || "",
+      },
+      match_maps: matchMaps,
+      lineup_1: {
+        id: formData.get("lineup_1_id"),
+        name: formData.get("lineup_1_name") || "Team 1",
+        coach_steam_id: formData.get("lineup_1_coach_steam_id") || null,
+        lineup_players: lineup1Players,
+      },
+      lineup_2: {
+        id: formData.get("lineup_2_id"),
+        name: formData.get("lineup_2_name") || "Team 2",
+        coach_steam_id: formData.get("lineup_2_coach_steam_id") || null,
+        lineup_players: lineup2Players,
+      },
+      is_lan: true,
+    };
+
+    const jsonOutput = document.getElementById("jsonOutput");
+    jsonOutput.textContent = JSON.stringify(matchData, null, 2);
+    jsonOutput.classList.remove("hidden");
+  }
+
+  async function submitForm() {
+    // Validate form first
+    const validationErrors = validateForm();
+
+    if (validationErrors.length > 0) {
+      // Show validation errors in toast
+      const errorMessage =
+        validationErrors.length === 1
+          ? validationErrors[0]
+          : `Please fix ${validationErrors.length} validation errors:\n• ${validationErrors.join("\n• ")}`;
+
+      showToast(errorMessage, "error", 8000);
+
+      // Scroll to first error field
+      const firstErrorField = document.querySelector(".field-error");
+      if (firstErrorField) {
+        firstErrorField.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+        firstErrorField.focus();
+      }
+
+      return;
+    }
+
+    // Generate JSON from form data
+    const form = document.getElementById("matchForm");
+    const formData = new FormData(form);
+
+    // Get global timeout values
+    const lineup1Timeouts =
+      parseInt(formData.get("lineup_1_timeouts_available")) || 2;
+    const lineup2Timeouts =
+      parseInt(formData.get("lineup_2_timeouts_available")) || 2;
+
+    // Build match maps array
+    const mapIds = formData.getAll("map_id[]");
+    const mapNames = formData.getAll("map_name[]");
+    const workshopMapIds = formData.getAll("workshop_map_id[]");
+    const mapOrders = formData.getAll("map_order[]");
+    const mapStatuses = formData.getAll("map_status[]");
+    const lineup1Sides = formData.getAll("lineup_1_side[]");
+    const lineup2Sides = formData.getAll("lineup_2_side[]");
+
+    const matchMaps = mapIds.map((mapId, index) => ({
+      id: mapId,
+      map: {
+        name: mapNames[index] || "",
+        workshop_map_id: workshopMapIds[index] || null,
+      },
+      rounds: [],
+      order: parseInt(mapOrders[index]) || index + 1,
+      status: mapStatuses[index] || "Warmup",
+      lineup_1_side: lineup1Sides[index] || "CT",
+      lineup_2_side: lineup2Sides[index] || "TERRORIST",
+      lineup_1_timeouts_available: lineup1Timeouts,
+      lineup_2_timeouts_available: lineup2Timeouts,
+    }));
+
+    // Build lineup players arrays
+    const lineup1SteamIds = formData.getAll("lineup_1_player_steam_id[]");
+    const lineup1Names = formData.getAll("lineup_1_player_name[]");
+    const lineup1Captains = formData.getAll("lineup_1_captain");
+    const lineup1Gagged = formData.getAll("lineup_1_player_gagged[]");
+    const lineup1Muted = formData.getAll("lineup_1_player_muted[]");
+
+    const lineup2SteamIds = formData.getAll("lineup_2_player_steam_id[]");
+    const lineup2Names = formData.getAll("lineup_2_player_name[]");
+    const lineup2Captains = formData.getAll("lineup_2_captain");
+    const lineup2Gagged = formData.getAll("lineup_2_player_gagged[]");
+    const lineup2Muted = formData.getAll("lineup_2_player_muted[]");
+
+    const lineup1Players = lineup1SteamIds.map((steamId, index) => ({
+      captain: lineup1Captains.includes(index.toString()),
+      steam_id: steamId,
+      match_lineup_id: formData.get("lineup_1_id"),
+      placeholder_name: null,
+      name: lineup1Names[index] || null,
+      is_banned: false,
+      is_gagged: lineup1Gagged.includes("true"),
+      is_muted: lineup1Muted.includes("true"),
+    }));
+
+    const lineup2Players = lineup2SteamIds.map((steamId, index) => ({
+      captain: lineup2Captains.includes(index.toString()),
+      steam_id: steamId,
+      match_lineup_id: formData.get("lineup_2_id"),
+      placeholder_name: null,
+      name: lineup2Names[index] || null,
+      is_banned: false,
+      is_gagged: lineup2Gagged.includes("true"),
+      is_muted: lineup2Muted.includes("true"),
+    }));
+
+    // Build the JSON structure
+    const matchData = {
+      id: formData.get("id"),
+      password: formData.get("password"),
+      lineup_1_id: formData.get("lineup_1_id"),
+      lineup_2_id: formData.get("lineup_2_id"),
+      current_match_map_id: matchMaps[0]?.id || "",
+      options: {
+        mr: parseInt(formData.get("mr")) || 8,
+        type: formData.get("type") || "Competitive",
+        best_of: parseInt(formData.get("best_of")) || 1,
+        coaches: formData.get("coaches") === "on",
+        overtime: formData.get("overtime") === "on",
+        tv_delay: parseInt(formData.get("tv_delay")) || 115,
+        knife_round: formData.get("knife_round") === "on",
+        ready_setting: formData.get("ready_setting") || "Players",
+        timeout_setting:
+          formData.get("timeout_setting") || "CoachAndPlayers",
+        tech_timeout_setting:
+          formData.get("tech_timeout_setting") || "Admin",
+        number_of_substitutes:
+          parseInt(formData.get("number_of_substitutes")) || 0,
+        cfg_override: formData.get("cfg_override") || "",
+      },
+      match_maps: matchMaps,
+      lineup_1: {
+        id: formData.get("lineup_1_id"),
+        name: formData.get("lineup_1_name") || "Team 1",
+        coach_steam_id: formData.get("lineup_1_coach_steam_id") || null,
+        lineup_players: lineup1Players,
+      },
+      lineup_2: {
+        id: formData.get("lineup_2_id"),
+        name: formData.get("lineup_2_name") || "Team 2",
+        coach_steam_id: formData.get("lineup_2_coach_steam_id") || null,
+        lineup_players: lineup2Players,
+      },
+      is_lan: true,
+    };
+
+    // Determine endpoint based on whether we're editing or creating
+    const isEditing = document.getElementById("submitButton").textContent === "Update Match";
+    const endpoint = isEditing ? `/matches/${matchData.id}` : "/matches";
+    const successMessage = isEditing ? "Match updated successfully!" : "Match started successfully!";
+
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(matchData),
+      });
+
+      if (response.ok) {
+        showToast(successMessage, "success");
+        // Redirect to home page after successful submission
+        setTimeout(() => {
+          window.location.href = "/";
+        }, 1500);
+      } else {
+        showToast(`Failed to ${isEditing ? 'update' : 'start'} match. Please try again.`, "error");
+      }
+    } catch (error) {
+      showToast(
+        "Network error. Please check your connection and try again.",
+        "error",
+      );
+    }
+  }
+</script>

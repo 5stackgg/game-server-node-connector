@@ -1,0 +1,79 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{POD_NAME}}"
+  namespace: "{{NAMESPACE}}"
+  labels:
+    app: "{{POD_NAME}}"
+spec:
+  dnsConfig:
+    options:
+      - name: ndots
+        value: "1"
+  hostNetwork: true
+  containers:
+    - name: game-server
+      image: "{{PLUGIN_IMAGE}}"
+      resources:
+        requests:
+          cpu: "{{CPUS}}"
+        limits:
+          cpu: "{{CPUS}}"
+      ports:
+        - containerPort: {{SERVER_PORT}} 
+          protocol: TCP
+        - containerPort: {{SERVER_PORT}}
+          protocol: UDP
+        - containerPort: {{TV_PORT}}
+          protocol: TCP
+        - containerPort: {{TV_PORT}}
+          protocol: UDP
+      env:
+        - name: GAME_NODE_SERVER
+          value: "true"
+        - name: SERVER_PORT
+          value: "{{SERVER_PORT}}"
+        - name: TV_PORT
+          value: "{{TV_PORT}}"
+        - name: RCON_PASSWORD
+          value: "{{RCON_PASSWORD}}"
+        - name: SERVER_PASSWORD
+          value: "{{MATCH_PASSWORD}}"
+        - name: EXTRA_GAME_PARAMS
+          value: "-maxplayers 13 +map {{MAP_NAME}}"
+        - name: SERVER_ID
+          value: "{{SERVER_ID}}"
+        - name: SERVER_API_PASSWORD
+          value: "{{SERVER_API_PASSWORD}}"
+        - name: API_DOMAIN
+          value: "http://localhost:8080"
+        - name: DEMOS_DOMAIN
+          value: "http://localhost:8080"
+        - name: WS_DOMAIN
+          value: "ws://localhost:8080/ws"
+        - name: STEAM_RELAY
+          value: "false"
+        - name: OFFLINE_MODE
+          value: "true"
+      volumeMounts:
+        - name: "steamcmd"
+          mountPath: /serverdata/steamcmd
+        - name: "serverfiles"
+          mountPath: /serverdata/serverfiles
+        - name: "demos"
+          mountPath: /opt/demos
+        - name: "custom-plugins"
+          mountPath: /opt/custom-plugins
+  volumes:
+    - name: "steamcmd"
+      hostPath:
+        path: /opt/5stack/steamcmd
+    - name: "serverfiles"
+      hostPath:
+        path: /opt/5stack/serverfiles
+    - name: "demos"
+      hostPath:
+        path: /opt/5stack/demos
+    - name: "custom-plugins"
+      hostPath:
+        path: /opt/5stack/custom-plugins

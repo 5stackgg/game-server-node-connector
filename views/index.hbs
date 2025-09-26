@@ -1,0 +1,40 @@
+{{> header}}
+
+{{#if matches}}
+  <div class="mb-8">
+    <div class="flex justify-between items-center mb-4 pb-2 border-b-2 border-gray-600">
+      <h2 class="text-2xl font-semibold text-gray-300">Matches</h2>
+      <a 
+        href="/matches" 
+        class="inline-flex items-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+        </svg>
+        Create New Match
+      </a>
+    </div>
+    <ul class="space-y-4">
+      {{#each matches}}
+        {{> match-info this}}
+      {{/each}}
+    </ul>
+  </div>
+{{else}}
+  <div class="mb-8">
+    <div class="flex justify-between items-center mb-4 pb-2 border-b-2 border-gray-600">
+      <h2 class="text-2xl font-semibold text-gray-300">Matches</h2>
+      <a 
+        href="/matches" 
+        class="inline-flex items-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+        </svg>
+        Create New Match
+      </a>
+    </div>
+    <div class="text-gray-400 italic">No matches found.</div>
+  </div>
+{{/if}}
+
