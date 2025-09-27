@@ -13,12 +13,14 @@ import { MatchData } from "./types/MatchData";
 import { type Request, type Response } from "express";
 import { BasicGuardGuard } from "./basic-guard.guard";
 import { KubeneretesService } from "src/kubeneretes/kubeneretes.service";
+import { NetworkService } from "src/system/network.service";
 
 @Controller()
 export class OfflineMatchesController {
   constructor(
     private readonly kubeneretesService: KubeneretesService,
     private readonly offlineMatchesService: OfflineMatchesService,
+    private readonly networkService: NetworkService,
   ) {}
 
   @Get()
@@ -26,6 +28,7 @@ export class OfflineMatchesController {
   @Render("index")
   public async index() {
     return {
+      lanIP: await this.networkService.getLanIP(),
       matches: await this.offlineMatchesService.getMatches(),
       hasGameServerImage: await this.kubeneretesService.hasGameServerImage(),
     };

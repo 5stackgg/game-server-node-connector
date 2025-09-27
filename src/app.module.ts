@@ -10,6 +10,7 @@ import { DemosModule } from "./demos/demos.module";
 import { OfflineMatchesModule } from "./offline-matches/offline-matches.module";
 import { ClientsModule, Transport } from "@nestjs/microservices";
 import { RedisManagerService } from "./redis/redis-manager/redis-manager.service";
+import { RconModule } from "./rcon/rcon.module";
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { RedisManagerService } from "./redis/redis-manager/redis-manager.service
     WebrtcModule,
     DemosModule,
     OfflineMatchesModule,
+    RconModule,
   ],
   controllers: [],
   providers: [loggerFactory()],

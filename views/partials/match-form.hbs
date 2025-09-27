@@ -161,10 +161,10 @@
             name="ready_setting"
             class="w-full p-3 border-2 border-gray-600 rounded-lg bg-gray-700 text-gray-100 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-800"
         >
-            <option value="Admin" selected>Admin</option>
+            <option value="Admin">Admin</option>
             <option value="Captains">Captains</option>
             <option value="Coach">Coach</option>
-            <option value="Players">Players</option>
+            <option value="Players" selected>Players</option>
         </select>
         </div>
         <div>
@@ -176,10 +176,10 @@
             name="timeout_setting"
             class="w-full p-3 border-2 border-gray-600 rounded-lg bg-gray-700 text-gray-100 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-800"
         >
-            <option value="Admin" selected>Admin</option>
+            <option value="Admin">Admin</option>
             <option value="Coach">Coach</option>
             <option value="CoachAndCaptains">Coach and Captains</option>
-            <option value="CoachAndPlayers">Coach and Players</option>
+            <option value="CoachAndPlayers" selected>Coach and Players</option>
         </select>
         </div>
         <div>
@@ -647,8 +647,8 @@
     document.getElementById("type").value = matchData.options?.type || "Competitive";
     document.getElementById("bestOf").value = matchData.options?.best_of || 1;
     document.getElementById("tvDelay").value = matchData.options?.tv_delay || 115;
-    document.getElementById("readySetting").value = matchData.options?.ready_setting || "Admin";
-    document.getElementById("timeoutSetting").value = matchData.options?.timeout_setting || "Admin";
+    document.getElementById("readySetting").value = matchData.options?.ready_setting || "Players";
+    document.getElementById("timeoutSetting").value = matchData.options?.timeout_setting || "CoachAndPlayers";
     document.getElementById("techTimeoutSetting").value = matchData.options?.tech_timeout_setting || "Admin";
     document.getElementById("numberOfSubstitutes").value = matchData.options?.number_of_substitutes || 0;
     document.getElementById("cfgOverride").value = matchData.options?.cfg_override || "";

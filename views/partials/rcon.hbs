@@ -1,0 +1,194 @@
+<!-- RCON Console Interface -->
+<div class="bg-gray-800 p-4 rounded-lg mb-4">
+    <h4 class="text-gray-300 font-semibold mb-3 flex items-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+        </svg>
+        RCON Console
+    </h4>
+    
+    <!-- Command Input -->
+    <div class="flex gap-2 mb-4">
+        <input 
+            type="text" 
+            id="rcon-command" 
+            placeholder="Enter RCON command (e.g., status)" 
+            class="flex-1 bg-gray-700 text-gray-100 px-3 py-2 rounded border border-gray-600 focus:border-indigo-500 focus:outline-none text-sm"
+            onkeypress="handleRconKeyPress(event, '{{this.id}}')"
+        >
+        <button 
+            id="send-btn"
+            class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded text-sm font-medium transition-colors duration-200"
+            onclick="sendRconCommand('{{this.id}}')"
+        >
+            Send
+        </button>
+    </div>
+
+
+    <!-- Console Output -->
+    <div class="bg-gray-900 rounded border border-gray-600 p-3 h-64 overflow-y-auto">
+        <div id="rcon-output" class="text-sm font-mono text-gray-300 space-y-1"></div>
+    </div>
+</div>
+
+<script>
+let rconSocket = null;
+let isConnected = false;
+let commandHistory = [];
+let historyIndex = -1;
+let currentMatchId = '{{this.id}}';
+
+// Auto-connect when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    connectRcon(currentMatchId);
+});
+
+function connectRcon(matchId) {
+    if (isConnected) return;
+    
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}`;
+    
+    try {
+        rconSocket = new WebSocket(wsUrl);
+        
+        rconSocket.onopen = function() {
+            isConnected = true;
+        };
+        
+        rconSocket.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            if (data.event === 'rcon') {
+                if (data.data.result === 'unable to connect to rcon') {
+                    addToOutput('Failed to connect to game server RCON', 'error');
+                } else {
+                    addToOutput(data.data.result, 'response');
+                }
+            }
+        };
+        
+        rconSocket.onclose = function() {
+            isConnected = false;
+            addToOutput('WebSocket disconnected', 'warning');
+            // Auto-reconnect after 3 seconds
+            setTimeout(() => {
+                if (!isConnected) {
+                    connectRcon(matchId);
+                }
+            }, 3000);
+        };
+        
+        rconSocket.onerror = function(error) {
+            addToOutput('WebSocket connection error', 'error');
+        };
+        
+    } catch (error) {
+        addToOutput('Failed to connect: ' + error.message, 'error');
+    }
+}
+
+function sendRconCommand(matchId) {
+    const commandInput = document.getElementById('rcon-command');
+    const command = commandInput.value.trim();
+    
+    if (!command || !isConnected) return;
+    
+    const uuid = generateUUID();
+    addToOutput(`> ${command}`, 'command');
+    
+    // Add to history
+    commandHistory.unshift(command);
+    if (commandHistory.length > 50) {
+        commandHistory.pop();
+    }
+    historyIndex = -1;
+    
+    rconSocket.send(JSON.stringify({
+        event: 'rcon',
+        data: {
+            uuid: uuid,
+            command: command,
+            matchId: matchId
+        }
+    }));
+    
+    commandInput.value = '';
+}
+
+
+function handleRconKeyPress(event, matchId) {
+    if (event.key === 'Enter') {
+        sendRconCommand(matchId);
+    } else if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        if (historyIndex < commandHistory.length - 1) {
+            historyIndex++;
+            document.getElementById('rcon-command').value = commandHistory[historyIndex];
+        }
+    } else if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        if (historyIndex > 0) {
+            historyIndex--;
+            document.getElementById('rcon-command').value = commandHistory[historyIndex];
+        } else if (historyIndex === 0) {
+            historyIndex = -1;
+            document.getElementById('rcon-command').value = '';
+        }
+    }
+}
+
+function addToOutput(text, type = 'normal') {
+    const output = document.getElementById('rcon-output');
+    const scrollContainer = output.parentElement; // The div with overflow-y-auto
+    const div = document.createElement('div');
+    
+    const timestamp = new Date().toLocaleTimeString();
+    
+    switch (type) {
+        case 'command':
+            div.innerHTML = `<span class="text-gray-500">[${timestamp}]</span> <span class="text-blue-400">${text}</span>`;
+            break;
+        case 'response':
+            div.innerHTML = `<span class="text-gray-500">[${timestamp}]</span> <pre class="text-gray-300 whitespace-pre-wrap font-mono text-sm">${text}</pre>`;
+            break;
+        case 'success':
+            div.innerHTML = `<span class="text-gray-500">[${timestamp}]</span> <span class="text-green-400">${text}</span>`;
+            break;
+        case 'error':
+            div.innerHTML = `<span class="text-gray-500">[${timestamp}]</span> <span class="text-red-400">${text}</span>`;
+            break;
+        case 'warning':
+            div.innerHTML = `<span class="text-gray-500">[${timestamp}]</span> <span class="text-yellow-400">${text}</span>`;
+            break;
+        default:
+            div.innerHTML = `<span class="text-gray-500">[${timestamp}]</span> <span class="text-gray-300">${text}</span>`;
+    }
+    
+    output.appendChild(div);
+    // Scroll to bottom
+    setTimeout(() => {
+        scrollContainer.scrollTop = scrollContainer.scrollHeight;
+    }, 0);
+    
+    // Limit output lines
+    while (output.children.length > 100) {
+        output.removeChild(output.firstChild);
+    }
+}
+
+function generateUUID() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0;
+        const v = c == 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+}
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', function() {
+    if (rconSocket) {
+        rconSocket.close();
+    }
+});
+</script>
