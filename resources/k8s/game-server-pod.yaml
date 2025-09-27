@@ -55,6 +55,8 @@ spec:
           value: "false"
         - name: OFFLINE_MODE
           value: "true"
+        - name: GAME_SERVER_OFFLINE_MATCH_DATA
+          value: '{{GAME_SERVER_OFFLINE_MATCH_DATA}}'
       volumeMounts:
         - name: "steamcmd"
           mountPath: /serverdata/steamcmd

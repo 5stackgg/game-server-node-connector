@@ -64,30 +64,36 @@ export class OfflineMatchesService {
         server_port: serverPort,
       });
 
+      const matchDataYaml = this.replacePlaceholders(
+        fs.readFileSync("./resources/k8s/game-server-pod.yaml", "utf8"),
+        {
+          POD_NAME: jobName,
+          NAMESPACE: "5stack",
+          GAME_SERVER_NODE_ID: gameServerNodeId,
+          PLUGIN_IMAGE: "ghcr.io/5stackgg/game-server:latest",
+          SERVER_PORT: serverPort.toString(),
+          TV_PORT: tvPort.toString(),
+          RCON_PASSWORD: matchData.id,
+          MATCH_PASSWORD: matchData.password,
+          MAP_NAME: mapName,
+          SERVER_ID: matchData.id,
+          SERVER_API_PASSWORD: "api-password",
+          STEAM_RELAY: "false",
+          CPUS: "1",
+          GAME_SERVER_OFFLINE_MATCH_DATA: JSON.stringify(matchData),
+        },
+      );
+
+      yaml.parse(matchDataYaml);
+
       fs.writeFileSync(
         path.join(this.manifestsDirectory, `${jobName}.yaml`),
-        this.replacePlaceholders(
-          fs.readFileSync("./resources/k8s/game-server-pod.yaml", "utf8"),
-          {
-            POD_NAME: jobName,
-            NAMESPACE: "5stack",
-            GAME_SERVER_NODE_ID: gameServerNodeId,
-            PLUGIN_IMAGE: "ghcr.io/5stackgg/game-server:latest",
-            SERVER_PORT: serverPort.toString(),
-            TV_PORT: tvPort.toString(),
-            RCON_PASSWORD: "default-rcon-password",
-            MATCH_PASSWORD: matchData.password,
-            MAP_NAME: mapName,
-            SERVER_ID: matchData.id,
-            SERVER_API_PASSWORD: "api-password",
-            STEAM_RELAY: "false",
-            CPUS: "1",
-          },
-        ),
+        matchDataYaml,
       );
     } catch (error) {
       this.logger.error("Error generating YAML files:", error);
       this.deleteMatch(matchData.id);
+      throw error;
     }
   }
 
