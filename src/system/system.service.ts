@@ -110,7 +110,7 @@ export class SystemService {
   }> {
     const governors: Record<number, string> = {};
     const cpuGovernorFiles = glob.sync(
-      "/sys/devices/system/cpu/cpu*/cpufreq/scaling_governor",
+      "/host-cpu/cpu*/cpufreq/scaling_governor",
     );
 
     for (const file of cpuGovernorFiles) {
@@ -130,7 +130,11 @@ export class SystemService {
     return {
       cpus: governors,
       governor:
-        new Set(governorValues).size === 1 ? governorValues[0] : "mixed",
+        Object.keys(governorValues).length === 0
+          ? "unknown"
+          : new Set(governorValues).size === 1
+            ? governorValues[0]
+            : "mixed",
     };
   }
 }
