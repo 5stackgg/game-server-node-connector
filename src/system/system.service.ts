@@ -7,6 +7,8 @@ import { ClientProxy } from "@nestjs/microservices";
 import fs from "fs";
 import { execSync } from "child_process";
 import vdf from "vdf-parser";
+import { glob } from "glob";
+import path from "path";
 
 @Injectable()
 export class SystemService {
@@ -51,6 +53,7 @@ export class SystemService {
     if (!this.networkService.publicIP) {
       await this.networkService.getPublicIP();
     }
+
     const publicIP = this.networkService.publicIP;
 
     if (nodeIP && this.lastNodeIP !== nodeIP) {
@@ -79,6 +82,7 @@ export class SystemService {
       supportsCpuPinning,
       csBuild: await this.getCsVersion(),
       node: this.nodeName,
+      cpuGovernorInfo: await this.getCPUGovernorInfo(),
     });
   }
 
@@ -98,5 +102,30 @@ export class SystemService {
     };
 
     return parsed?.AppState?.buildid;
+  }
+
+  private async getCPUGovernorInfo() {
+    const governors: Record<string, string> = {};
+    const cpuGovernorFiles = glob.sync(
+      "/sys/devices/system/cpu/cpu[0-9]*/cpufreq/scaling_governord",
+    );
+
+    for (const file of cpuGovernorFiles) {
+      try {
+        governors[
+          path.basename(path.dirname(path.dirname(file))).replace("cpu", "")
+        ] = fs.readFileSync(file, "utf8").trim();
+      } catch (error) {
+        this.logger.error(`Error getting CPU governor [${file}]: ${error}`);
+      }
+    }
+
+    const governorValues = Object.values(governors);
+
+    return {
+      cpus: governors,
+      governor:
+        new Set(governorValues).size === 1 ? governorValues[0] : "mixed",
+    };
   }
 }
