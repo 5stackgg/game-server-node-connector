@@ -104,16 +104,21 @@ export class SystemService {
     return parsed?.AppState?.buildid;
   }
 
-  private async getCPUGovernorInfo() {
-    const governors: Record<string, string> = {};
+  private async getCPUGovernorInfo(): Promise<{
+    cpus: Record<number, string>;
+    governor: string;
+  }> {
+    const governors: Record<number, string> = {};
     const cpuGovernorFiles = glob.sync(
-      "/sys/devices/system/cpu/cpu[0-9]*/cpufreq/scaling_governord",
+      "/sys/devices/system/cpu/cpu*/cpufreq/scaling_governor",
     );
 
     for (const file of cpuGovernorFiles) {
       try {
         governors[
-          path.basename(path.dirname(path.dirname(file))).replace("cpu", "")
+          parseInt(
+            path.basename(path.dirname(path.dirname(file))).replace("cpu", ""),
+          )
         ] = fs.readFileSync(file, "utf8").trim();
       } catch (error) {
         this.logger.error(`Error getting CPU governor [${file}]: ${error}`);
