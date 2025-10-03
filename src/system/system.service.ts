@@ -42,6 +42,15 @@ export class SystemService {
 
     const nodeIP = await this.kubeneretesService.getNodeIP(node);
     const labels = await this.kubeneretesService.getNodeLabels(node);
+
+    const networkLimited =
+      labels?.["5stack-network-limiter"] &&
+      parseInt(labels["5stack-network-limiter"]);
+
+    this.networkService.setNetworkLimit(
+      networkLimited && !isNaN(networkLimited) ? networkLimited : undefined,
+    );
+
     const nodeStats = await this.kubeneretesService.getNodeStats(node);
     const supportsLowLatency =
       await this.kubeneretesService.getNodeLowLatency(node);

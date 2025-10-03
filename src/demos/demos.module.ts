@@ -1,8 +1,10 @@
 import { Module } from "@nestjs/common";
 import { DemosService } from "./demos.service";
 import { loggerFactory } from "src/utilities/LoggerFactory";
+import { SystemModule } from "src/system/system.module";
 
 @Module({
+  imports: [SystemModule],
   providers: [DemosService, loggerFactory()],
   exports: [],
 })

@@ -5,8 +5,21 @@ import { Injectable, Logger, OnApplicationBootstrap } from "@nestjs/common";
 @Injectable()
 export class NetworkService implements OnApplicationBootstrap {
   public publicIP: string;
+  public networkLimit?: number;
 
   constructor(private readonly logger: Logger) {}
+
+  public async getNetworkLimit() {
+    return this.networkLimit;
+  }
+
+  public async setNetworkLimit(limit?: number) {
+    if (this.networkLimit === limit) {
+      return;
+    }
+    this.logger.log(`Demo Upload is network limited to ${limit} Mbps`);
+    this.networkLimit = limit;
+  }
 
   public async onApplicationBootstrap() {
     await this.getPublicIP();

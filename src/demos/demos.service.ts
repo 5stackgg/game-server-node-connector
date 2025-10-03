@@ -7,6 +7,9 @@ import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { HasuraConfig } from "src/configs/types/HasuraConfig";
 import { ApiConfig } from "src/configs/types/ApiConfig";
+import throttle from "src/utilities/throttle";
+import { NetworkService } from "src/system/network.service";
+import { Readable } from "stream";
 
 @Injectable()
 export class DemosService {
@@ -18,6 +21,7 @@ export class DemosService {
 
   constructor(
     private readonly configService: ConfigService,
+    private readonly networkService: NetworkService,
     private readonly logger: Logger,
   ) {
     this.apiConfig = this.configService.get<ApiConfig>("api")!;
@@ -92,9 +96,20 @@ export class DemosService {
           presignedUrl: string;
         };
 
+        let demoStream: Readable = fs.createReadStream(demo.fullPath);
+
+        const networkLimit = await this.networkService.getNetworkLimit();
+        if (networkLimit) {
+          demoStream = throttle(
+            "demos",
+            demoStream,
+            (networkLimit / 8) * 1000000,
+          );
+        }
+
         const uploadResponse = await fetch(presignedUrl, {
           method: "PUT",
-          body: fs.createReadStream(demo.fullPath),
+          body: demoStream,
           headers: {
             "Content-Length": demo.size.toString(),
             "Content-Type": "application/octet-stream",
