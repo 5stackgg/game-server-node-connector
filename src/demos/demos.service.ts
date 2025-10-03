@@ -38,7 +38,8 @@ export class DemosService {
   }
 
   public async uploadDemos() {
-    if (this.isUploading) {
+    const networkLimit = await this.networkService.getNetworkLimit();
+    if (this.isUploading || networkLimit === 0) {
       return;
     }
 
@@ -98,7 +99,6 @@ export class DemosService {
 
         let demoStream: Readable = fs.createReadStream(demo.fullPath);
 
-        const networkLimit = await this.networkService.getNetworkLimit();
         if (networkLimit) {
           demoStream = throttle(
             "demos",
