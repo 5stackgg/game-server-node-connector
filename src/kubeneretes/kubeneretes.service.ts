@@ -213,6 +213,7 @@ export class KubeneretesService {
     }
 
     return {
+      sockets: parseInt(map["Socket(s)"]),
       coresPerSocket: parseInt(map["Core(s) per socket"], 10),
       threadsPerCore: parseInt(map["Thread(s) per core"], 10),
     };
