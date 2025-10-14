@@ -40,7 +40,7 @@ spec:
         - name: SERVER_PASSWORD
           value: "{{MATCH_PASSWORD}}"
         - name: EXTRA_GAME_PARAMS
-          value: "-maxplayers 13 +map {{MAP_NAME}}"
+          value: "-maxplayers 13 +map {{MAP_NAME}} +sv_lan 1"
         - name: SERVER_ID
           value: "{{SERVER_ID}}"
         - name: SERVER_API_PASSWORD
