@@ -24,9 +24,12 @@ export class NetworkService implements OnApplicationBootstrap {
   public async onApplicationBootstrap() {
     await this.getPublicIP();
 
-    setInterval(async () => {
-      await this.getPublicIP();
-    }, 60 * 1000);
+    setInterval(
+      async () => {
+        await this.getPublicIP();
+      },
+      5 * 60 * 1000,
+    );
   }
 
   public async getLanIP() {
