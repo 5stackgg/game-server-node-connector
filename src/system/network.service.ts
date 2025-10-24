@@ -33,13 +33,148 @@ export class NetworkService implements OnApplicationBootstrap {
   }
 
   public async getLanIP() {
+    return this.getLanInterface().ipv4?.address;
+  }
+
+  public getLanInterface() {
     const interfaces = this.getInterfaces();
-    for (const { name, address } of interfaces) {
-      if (name.startsWith("tailscale")) {
-        continue;
+    const ipv4Interface = interfaces.find(
+      (iface) =>
+        !iface.name.startsWith("tailscale") &&
+        iface.family === "IPv4" &&
+        iface.netmask,
+    );
+
+    const ipv6Interface = interfaces.find(
+      (iface) =>
+        !iface.name.startsWith("tailscale") &&
+        iface.family === "IPv6" &&
+        iface.cidr,
+    );
+
+    return {
+      ipv4: ipv4Interface
+        ? {
+            ...ipv4Interface,
+            subnet: this.calculateSubnet(
+              ipv4Interface.address,
+              ipv4Interface.netmask,
+            ),
+          }
+        : null,
+      ipv6:
+        ipv6Interface && ipv6Interface.cidr
+          ? {
+              ...ipv6Interface,
+              subnet: this.calculateIPv6Subnet(
+                ipv6Interface.address,
+                ipv6Interface.cidr,
+              ),
+            }
+          : null,
+    };
+  }
+
+  private calculateSubnet(ip: string, netmask: string): string {
+    const ipOctets = ip.split(".").map((octet) => parseInt(octet, 10));
+    const netmaskOctets = netmask
+      .split(".")
+      .map((octet) => parseInt(octet, 10));
+
+    const networkOctets = ipOctets.map(
+      (octet, index) => octet & netmaskOctets[index],
+    );
+
+    return networkOctets.join(".");
+  }
+
+  private calculateIPv6Subnet(ip: string, cidr: string): string {
+    // Extract prefix length from CIDR (e.g., "2001:db8::/64" -> 64)
+    const prefixLength = parseInt(cidr.split("/")[1], 10);
+
+    // Expand IPv6 address to full form
+    const expanded = this.expandIPv6(ip);
+    const segments = expanded
+      .split(":")
+      .map((segment) => parseInt(segment, 16));
+
+    // Calculate how many segments to keep based on prefix length
+    const segmentsToKeep = Math.floor(prefixLength / 16);
+    const bitsInLastSegment = prefixLength % 16;
+
+    // Create the network address
+    const networkSegments = segments.map((segment, index) => {
+      if (index < segmentsToKeep) {
+        return segment; // Keep full segments
+      } else if (index === segmentsToKeep && bitsInLastSegment > 0) {
+        // Mask the last partial segment
+        const mask = (0xffff << (16 - bitsInLastSegment)) & 0xffff;
+        return segment & mask;
+      } else {
+        return 0; // Zero out remaining segments
       }
-      return address;
+    });
+
+    return networkSegments
+      .map((segment) => segment.toString(16).padStart(4, "0"))
+      .join(":");
+  }
+
+  private expandIPv6(ip: string): string {
+    if (ip.includes("::")) {
+      const parts = ip.split("::");
+      const leftParts = parts[0] ? parts[0].split(":") : [];
+      const rightParts = parts[1] ? parts[1].split(":") : [];
+      const missingParts = 8 - leftParts.length - rightParts.length;
+      const zeros = Array(missingParts).fill("0");
+      return [...leftParts, ...zeros, ...rightParts].join(":");
     }
+    return ip;
+  }
+
+  public calculateIPv4NetworkAddress(ip: string, netmask: string): string {
+    const ipOctets = ip.split(".").map((octet) => parseInt(octet, 10));
+    const netmaskOctets = netmask
+      .split(".")
+      .map((octet) => parseInt(octet, 10));
+
+    const networkOctets = ipOctets.map(
+      (octet, index) => octet & netmaskOctets[index],
+    );
+
+    return networkOctets.join(".");
+  }
+
+  public calculateIPv6NetworkAddress(ip: string, cidr: string): string {
+    // Extract prefix length from CIDR (e.g., "2001:db8::/64" -> 64)
+    const prefixLength = parseInt(cidr.split("/")[1], 10);
+
+    // Expand IPv6 address to full form
+    const expanded = this.expandIPv6(ip);
+    const segments = expanded
+      .split(":")
+      .map((segment) => parseInt(segment, 16));
+
+    // Calculate how many segments to keep based on prefix length
+    const segmentsToKeep = Math.floor(prefixLength / 16);
+    const bitsInLastSegment = prefixLength % 16;
+
+    // Create the network address
+    const networkSegments = segments.map((segment, index) => {
+      if (index < segmentsToKeep) {
+        return segment; // Keep full segments
+      } else if (index === segmentsToKeep && bitsInLastSegment > 0) {
+        // Mask the last partial segment
+        const mask = (0xffff << (16 - bitsInLastSegment)) & 0xffff;
+        return segment & mask;
+      } else {
+        return 0; // Zero out remaining segments
+      }
+    });
+
+    return networkSegments
+      .map((segment) => segment.toString(16).padStart(4, "0"))
+      .join(":");
   }
 
   public async getPublicIP() {
@@ -81,12 +216,12 @@ export class NetworkService implements OnApplicationBootstrap {
   }
 
   private getInterfaces(): Array<
-    os.NetworkInterfaceInfoIPv4 & {
+    (os.NetworkInterfaceInfoIPv4 | os.NetworkInterfaceInfoIPv6) & {
       name: string;
     }
   > {
     const interfaces: Array<
-      os.NetworkInterfaceInfoIPv4 & {
+      (os.NetworkInterfaceInfoIPv4 | os.NetworkInterfaceInfoIPv6) & {
         name: string;
       }
     > = [];
@@ -99,11 +234,7 @@ export class NetworkService implements OnApplicationBootstrap {
       }
 
       for (const iface of ifaces) {
-        if (
-          iface.internal ||
-          iface.family !== "IPv4" ||
-          name.startsWith("cni")
-        ) {
+        if (iface.internal || name.startsWith("cni")) {
           continue;
         }
 
@@ -112,6 +243,9 @@ export class NetworkService implements OnApplicationBootstrap {
     }
 
     for (const iface of interfaces) {
+      if (iface.family !== "IPv4") {
+        continue;
+      }
       this.captureNicStats(iface.name);
     }
 
@@ -130,6 +264,8 @@ export class NetworkService implements OnApplicationBootstrap {
     if (this.capturedNics.has(nic)) {
       return;
     }
+
+    this.logger.log(`Capturing nic stats for ${nic}`);
 
     const nicStats = {
       tx: new Map<string, number>(),

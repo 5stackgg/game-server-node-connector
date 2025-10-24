@@ -5,6 +5,7 @@ import { WebRtcConfig } from "src/configs/types/WebRtcConfig";
 import nodeDataChannel, { PeerConnection } from "node-datachannel";
 import { RedisManagerService } from "src/redis/redis-manager/redis-manager.service";
 import { ClientProxy } from "@nestjs/microservices";
+import { NetworkService } from "src/system/network.service";
 
 @Injectable()
 export class WebrtcService {
@@ -14,6 +15,7 @@ export class WebrtcService {
   constructor(
     private readonly configService: ConfigService,
     private readonly redisManagerService: RedisManagerService,
+    private readonly networkService: NetworkService,
     private readonly logger: Logger,
     @Inject("API_SERVICE") private client: ClientProxy,
   ) {
@@ -120,35 +122,47 @@ export class WebrtcService {
 
   public isSameLAN(peerConnection: PeerConnection) {
     const pair = peerConnection.getSelectedCandidatePair();
-    if (!pair) return false;
+    if (!pair) {
+      return false;
+    }
+
+    const localInterface = this.networkService.getLanInterface();
 
     const localAddress = pair.local.address;
     const remoteAddress = pair.remote.address;
 
-    // IPv4 subnet check
     if (localAddress.includes(".") && remoteAddress.includes(".")) {
-      const octets1 = localAddress.split(".");
-      const octets2 = remoteAddress.split(".");
-      // Compare first 3 octets (assuming /24 subnet)
-      return (
-        octets1[0] === octets2[0] &&
-        octets1[1] === octets2[1] &&
-        octets1[2] === octets2[2]
+      if (!localInterface.ipv4) {
+        return false;
+      }
+
+      const localNetwork = this.networkService.calculateIPv4NetworkAddress(
+        localAddress,
+        localInterface.ipv4.netmask,
       );
+      const remoteNetwork = this.networkService.calculateIPv4NetworkAddress(
+        remoteAddress,
+        localInterface.ipv4.netmask,
+      );
+
+      return localNetwork === remoteNetwork;
     }
 
-    // IPv6 subnet check
     if (localAddress.includes(":") && remoteAddress.includes(":")) {
-      const segments1 = localAddress.split(":");
-      const segments2 = remoteAddress.split(":");
+      if (!localInterface.ipv6 || !localInterface.ipv6.cidr) {
+        return false;
+      }
 
-      // Compare first 4 segments (assuming /64 subnet)
-      return (
-        segments1[0] === segments2[0] &&
-        segments1[1] === segments2[1] &&
-        segments1[2] === segments2[2] &&
-        segments1[3] === segments2[3]
+      const localNetwork = this.networkService.calculateIPv6NetworkAddress(
+        localAddress,
+        localInterface.ipv6.cidr,
       );
+      const remoteNetwork = this.networkService.calculateIPv6NetworkAddress(
+        remoteAddress,
+        localInterface.ipv6.cidr,
+      );
+
+      return localNetwork === remoteNetwork;
     }
 
     return false;

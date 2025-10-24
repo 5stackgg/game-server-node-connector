@@ -28,7 +28,7 @@ export class OfflineMatchesController {
   @Render("index")
   public async index() {
     return {
-      lanIP: await this.networkService.getLanIP(),
+      lanIP: this.networkService.getLanIP(),
       matches: await this.offlineMatchesService.getMatches(),
       hasGameServerImage: await this.kubeneretesService.hasGameServerImage(),
     };
