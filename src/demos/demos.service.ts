@@ -52,8 +52,6 @@ export class DemosService {
       return;
     }
 
-    this.logger.log(`found ${demos.length} demos`);
-
     for (const demo of demos) {
       try {
         const presignedResponse = await fetch(
@@ -73,14 +71,14 @@ export class DemosService {
 
         switch (presignedResponse.status) {
           case 409:
-            this.logger.log(`match map is not finished`);
+            // map is not finished
             continue;
           case 406:
-            this.logger.warn(`demo is already uploaded`);
+            // demo is already uploaded
             fs.unlinkSync(demo.fullPath);
             continue;
           case 410:
-            this.logger.warn(`match map not found`);
+            // match map not found
             fs.unlinkSync(demo.fullPath);
             continue;
         }
