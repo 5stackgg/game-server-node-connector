@@ -32,7 +32,7 @@ export class NetworkService implements OnApplicationBootstrap {
     );
   }
 
-  public async getLanIP() {
+  public getLanIP() {
     return this.getLanInterface().ipv4?.address;
   }
 
