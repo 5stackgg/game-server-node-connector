@@ -24,7 +24,11 @@ export class SystemService {
     private readonly logger: Logger,
     @Inject("API_SERVICE") private client: ClientProxy,
   ) {
-    this.nodeName = this.configService.get<NodeConfig>("node")!.nodeName;
+    const nodeConfig = this.configService.get<NodeConfig>("node");
+    if (!nodeConfig || !nodeConfig.nodeName) {
+      throw new Error("NodeConfig or nodeName is missing in configuration");
+    }
+    this.nodeName = nodeConfig.nodeName;
   }
 
   public async onApplicationBootstrap() {
