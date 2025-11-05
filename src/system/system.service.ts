@@ -100,9 +100,7 @@ export class SystemService {
       return;
     }
 
-    const version = execSync(
-      "cat /serverfiles/steamapps/appmanifest_730.acf",
-    ).toString();
+    const version = fs.readFileSync("/serverfiles/steamapps/appmanifest_730.acf", "utf8");
 
     const parsed = vdf.parse(version) as {
       AppState?: {
