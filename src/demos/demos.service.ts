@@ -34,7 +34,7 @@ export class DemosService {
       await this.uploadDemos();
     }, 1000 * 60);
 
-    this.uploadDemos();
+    void this.uploadDemos();
   }
 
   public async uploadDemos() {

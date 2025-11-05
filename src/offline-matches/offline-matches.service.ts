@@ -92,7 +92,7 @@ export class OfflineMatchesService {
       );
     } catch (error) {
       this.logger.error("Error generating YAML files:", error);
-      this.deleteMatch(matchData.id);
+      await this.deleteMatch(matchData.id);
       throw error;
     }
   }

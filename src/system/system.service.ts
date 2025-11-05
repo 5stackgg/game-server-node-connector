@@ -30,7 +30,7 @@ export class SystemService {
   public async onApplicationBootstrap() {
     await this.sendNodeStatus();
     setInterval(() => {
-      this.sendNodeStatus();
+      void this.sendNodeStatus();
     }, 30 * 1000);
   }
 
@@ -47,7 +47,7 @@ export class SystemService {
       labels?.["5stack-network-limiter"] &&
       parseInt(labels["5stack-network-limiter"]);
 
-    this.networkService.setNetworkLimit(
+    await this.networkService.setNetworkLimit(
       networkLimited && !isNaN(networkLimited) ? networkLimited : undefined,
     );
 
