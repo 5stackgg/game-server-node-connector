@@ -13,7 +13,7 @@ import { ConfigService } from "@nestjs/config";
 import { NodeConfig } from "src/configs/types/NodeConfig";
 
 @Injectable()
-export class KubeneretesService {
+export class KubernetesService {
   private apiClient: CoreV1Api;
   private metricsClient: Metrics;
   private nodeName: string;

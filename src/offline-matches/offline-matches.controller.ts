@@ -12,13 +12,13 @@ import { OfflineMatchesService } from "./offline-matches.service";
 import { MatchData } from "./types/MatchData";
 import { type Request, type Response } from "express";
 import { BasicGuardGuard } from "./basic-guard.guard";
-import { KubeneretesService } from "src/kubeneretes/kubeneretes.service";
+import { KubernetesService } from "src/kubernetes/kubernetes.service";
 import { NetworkService } from "src/system/network.service";
 
 @Controller()
 export class OfflineMatchesController {
   constructor(
-    private readonly kubeneretesService: KubeneretesService,
+    private readonly kubernetesService: KubernetesService,
     private readonly offlineMatchesService: OfflineMatchesService,
     private readonly networkService: NetworkService,
   ) {}
@@ -30,7 +30,7 @@ export class OfflineMatchesController {
     return {
       lanIP: this.networkService.getLanIP(),
       matches: await this.offlineMatchesService.getMatches(),
-      hasGameServerImage: await this.kubeneretesService.hasGameServerImage(),
+      hasGameServerImage: await this.kubernetesService.hasGameServerImage(),
     };
   }
 
@@ -48,7 +48,7 @@ export class OfflineMatchesController {
   @Render("match")
   public async createMatch() {
     return {
-      hasGameServerImage: await this.kubeneretesService.hasGameServerImage(),
+      hasGameServerImage: await this.kubernetesService.hasGameServerImage(),
     };
   }
 
@@ -60,7 +60,7 @@ export class OfflineMatchesController {
 
     return {
       match,
-      hasGameServerImage: await this.kubeneretesService.hasGameServerImage(),
+      hasGameServerImage: await this.kubernetesService.hasGameServerImage(),
     };
   }
 

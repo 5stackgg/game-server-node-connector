@@ -2,7 +2,7 @@ import { Module } from "@nestjs/common";
 import { loggerFactory } from "./utilities/LoggerFactory";
 import configs from "./configs";
 import { ConfigModule } from "@nestjs/config";
-import { KubeneretesModule } from "./kubeneretes/kubeneretes.module";
+import { KubernetesModule } from "./kubernetes/kubernetes.module";
 import { SystemModule } from "./system/system.module";
 import { RedisModule } from "./redis/redis.module";
 import { WebrtcModule } from "./webrtc/webrtc.module";
@@ -34,7 +34,7 @@ import { RconModule } from "./rcon/rcon.module";
         },
       ],
     }),
-    KubeneretesModule,
+    KubernetesModule,
     SystemModule,
     RedisModule,
     WebrtcModule,

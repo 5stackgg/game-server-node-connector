@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger } from "@nestjs/common";
 import { NetworkService } from "./network.service";
-import { KubeneretesService } from "src/kubeneretes/kubeneretes.service";
+import { KubernetesService } from "src/kubernetes/kubernetes.service";
 import { ConfigService } from "@nestjs/config";
 import { NodeConfig } from "src/configs/types/NodeConfig";
 import { ClientProxy } from "@nestjs/microservices";
@@ -19,7 +19,7 @@ export class SystemService {
 
   constructor(
     private readonly networkService: NetworkService,
-    private readonly kubeneretesService: KubeneretesService,
+    private readonly kubernetesService: KubernetesService,
     private readonly configService: ConfigService,
     private readonly logger: Logger,
     @Inject("API_SERVICE") private client: ClientProxy,
@@ -37,11 +37,11 @@ export class SystemService {
   public async sendNodeStatus() {
     const lanIP = await this.networkService.getLanIP();
 
-    const nodeResp = await this.kubeneretesService.getNode();
+    const nodeResp = await this.kubernetesService.getNode();
     const node = (nodeResp as any)?.body ?? nodeResp;
 
-    const nodeIP = await this.kubeneretesService.getNodeIP(node);
-    const labels = await this.kubeneretesService.getNodeLabels(node);
+    const nodeIP = await this.kubernetesService.getNodeIP(node);
+    const labels = await this.kubernetesService.getNodeLabels(node);
 
     const networkLimited =
       labels?.["5stack-network-limiter"] &&
@@ -51,13 +51,13 @@ export class SystemService {
       networkLimited && !isNaN(networkLimited) ? networkLimited : undefined,
     );
 
-    const nodeStats = await this.kubeneretesService.getNodeStats(node);
+    const nodeStats = await this.kubernetesService.getNodeStats(node);
     const supportsLowLatency =
-      await this.kubeneretesService.getNodeLowLatency(node);
+      await this.kubernetesService.getNodeLowLatency(node);
     const supportsCpuPinning =
-      await this.kubeneretesService.getNodeSupportsCpuPinning(node);
+      await this.kubernetesService.getNodeSupportsCpuPinning(node);
 
-    const podStats = await this.kubeneretesService.getPodStats();
+    const podStats = await this.kubernetesService.getPodStats();
 
     if (!this.networkService.publicIP) {
       await this.networkService.getPublicIP();
