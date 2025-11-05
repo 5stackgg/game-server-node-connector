@@ -139,7 +139,7 @@ export class SystemService {
     return {
       cpus: governors,
       governor:
-        Object.keys(governorValues).length === 0
+        governorValues.length === 0
           ? "unknown"
           : new Set(governorValues).size === 1
             ? governorValues[0]
