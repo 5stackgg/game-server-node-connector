@@ -4,7 +4,6 @@ import { ConfigService } from "@nestjs/config";
 import { NestExpressApplication } from "@nestjs/platform-express";
 import { WsAdapter } from "@nestjs/platform-ws";
 import { Transport } from "@nestjs/microservices";
-import { join } from "path";
 import { RedisManagerService } from "./redis/redis-manager/redis-manager.service";
 import { create } from "express-handlebars";
 
@@ -53,4 +52,4 @@ async function bootstrap() {
   const httpPort = configService.get("app.httpPort") as number;
   await app.listen(httpPort);
 }
-bootstrap();
+void bootstrap();

@@ -246,7 +246,7 @@ export class NetworkService implements OnApplicationBootstrap {
       if (iface.family !== "IPv4") {
         continue;
       }
-      this.captureNicStats(iface.name);
+      void this.captureNicStats(iface.name);
     }
 
     return interfaces;
@@ -274,14 +274,14 @@ export class NetworkService implements OnApplicationBootstrap {
 
     this.capturedNics.set(nic, nicStats);
 
-    this.capture(nic, "tx", (data) => {
+    void this.capture(nic, "tx", (data) => {
       const tx = this.captureData(data);
       if (!tx) {
         return;
       }
       nicStats.tx.set(new Date().toISOString(), tx);
     });
-    this.capture(nic, "rx", (data) => {
+    void this.capture(nic, "rx", (data) => {
       const rx = this.captureData(data);
       if (!rx) {
         return;

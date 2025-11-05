@@ -3,7 +3,6 @@ import {
   ExecutionContext,
   Injectable,
   Logger,
-  UnauthorizedException,
 } from "@nestjs/common";
 import { Observable } from "rxjs";
 import { ConfigService } from "@nestjs/config";

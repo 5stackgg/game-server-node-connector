@@ -66,9 +66,10 @@ export class RconService {
 
       await Promise.race([rcon.connect(), timeoutPromise]);
     } catch (error) {
+      this.logger.warn("RCON connect error:", error);
       try {
         if (rcon.authenticated) {
-          rcon.end();
+          await rcon.end();
         }
       } catch (cleanupError) {
         this.logger.warn("Error during RCON cleanup:", cleanupError);
@@ -91,7 +92,7 @@ export class RconService {
     clearTimeout(this.connectTimeouts[matchId]);
 
     if (this.connections[matchId]) {
-      this.connections[matchId].end();
+      await this.connections[matchId].end();
       delete this.connections[matchId];
     }
   }
