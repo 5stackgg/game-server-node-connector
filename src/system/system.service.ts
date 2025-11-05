@@ -38,7 +38,13 @@ export class SystemService {
     const lanIP = await this.networkService.getLanIP();
 
     const nodeResp = await this.kubernetesService.getNode();
-    const node = (nodeResp as any)?.body ?? nodeResp;
+    // Explicitly check structure and fallback as needed
+    let node: any;
+    if (nodeResp && typeof nodeResp === "object" && "body" in nodeResp) {
+      node = (nodeResp as { body: unknown }).body;
+    } else {
+      node = nodeResp;
+    }
 
     const nodeIP = await this.kubernetesService.getNodeIP(node);
     const labels = await this.kubernetesService.getNodeLabels(node);
