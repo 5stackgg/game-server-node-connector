@@ -6,7 +6,7 @@ export default (): {
   app: {
     httpPort: process.env.HEALTH_PORT
       ? parseInt(process.env.HEALTH_PORT)
-      : 8085,
+      : 8585,
     basicAuthUser: "5s",
     basicAuthPass: process.env.NODE_NAME as string,
   },

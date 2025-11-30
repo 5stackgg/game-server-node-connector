@@ -46,11 +46,11 @@ spec:
         - name: SERVER_API_PASSWORD
           value: "{{SERVER_API_PASSWORD}}"
         - name: API_DOMAIN
-          value: "http://localhost:8085"
+          value: "http://localhost:8585"
         - name: DEMOS_DOMAIN
-          value: "http://localhost:8085"
+          value: "http://localhost:8585"
         - name: WS_DOMAIN
-          value: "ws://localhost:8085/ws"
+          value: "ws://localhost:8585/ws"
         - name: STEAM_RELAY
           value: "false"
         - name: OFFLINE_MODE
