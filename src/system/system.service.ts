@@ -92,6 +92,7 @@ export class SystemService {
       csBuild: await this.getCsVersion(),
       node: this.nodeName,
       cpuGovernorInfo: await this.getCPUGovernorInfo(),
+      cpuFrequencyInfo: await this.getCPUFrequncyInfo(),
     });
   }
 
@@ -122,6 +123,13 @@ export class SystemService {
       "/host-cpu/cpu*/cpufreq/scaling_governor",
     );
 
+    if (cpuGovernorFiles.length === 0) {
+      return {
+        cpus: {},
+        governor: "N/A",
+      };
+    }
+
     for (const file of cpuGovernorFiles) {
       try {
         governors[
@@ -145,5 +153,122 @@ export class SystemService {
             ? governorValues[0]
             : "mixed",
     };
+  }
+
+  private async getCPUFrequncyInfo(): Promise<{
+    model: string;
+    frequency: Record<number, string>;
+    cpus: Record<number, string>;
+  }> {
+    const frequencies: Record<number, string> = {};
+    const cpuFrequencyFiles = glob.sync(
+      "/host-cpu/cpu*/cpufreq/cpuinfo_max_freq",
+    );
+
+    for (const file of cpuFrequencyFiles) {
+      try {
+        frequencies[
+          parseInt(
+            path.basename(path.dirname(path.dirname(file))).replace("cpu", ""),
+          )
+        ] = fs.readFileSync(file, "utf8").trim();
+      } catch (error) {
+        this.logger.error(`Error getting CPU frequency [${file}]: ${error}`);
+      }
+    }
+
+    try {
+      const { execSync } = require("child_process");
+
+      const model = execSync("lscpu | grep 'Model name'", {
+        encoding: "utf8",
+      }).trim();
+
+      let cpuGHz: string | undefined;
+
+      if (!cpuGHz) {
+        const modelGHzMatch = model.match(/(\d+\.?\d*)\s*GHz/i);
+
+        if (modelGHzMatch) {
+          cpuGHz = modelGHzMatch.at(1);
+        }
+      }
+
+      if (!cpuGHz) {
+        let dmidecodeOutput: string | null = execSync(
+          `dmidecode -t processor`,
+        ).toString();
+
+        if (dmidecodeOutput) {
+          const currentSpeedMatch = dmidecodeOutput.match(
+            /Current Speed:\s*(\d+)\s*MHz/i,
+          );
+
+          if (currentSpeedMatch) {
+            cpuGHz = currentSpeedMatch.at(1);
+          }
+
+          if (!cpuGHz) {
+            const maxSpeedMatch = dmidecodeOutput.match(
+              /Max Speed:\s*(\d+)\s*MHz/i,
+            );
+            if (maxSpeedMatch) {
+              cpuGHz = maxSpeedMatch.at(1);
+            }
+          }
+
+          if (cpuGHz) {
+            cpuGHz = (parseInt(cpuGHz) / 1000).toString();
+          }
+        }
+      }
+
+      if (!cpuGHz) {
+        const maxMHz = execSync("lscpu | grep 'CPU max MHz:'", {
+          encoding: "utf8",
+        }).trim();
+
+        const maxMHzMatch = maxMHz.match(/CPU max MHz:\s*(\d+\.?\d*)/i);
+        if (maxMHzMatch) {
+          const mhzValue = parseFloat(maxMHzMatch[1] ?? "0");
+          cpuGHz = (mhzValue / 1000).toString();
+        }
+      }
+
+      const currentFrequenciesRaw = execSync("grep 'cpu MHz' /proc/cpuinfo", {
+        encoding: "utf8",
+      }).trim();
+
+      const currentFrequencies: Record<number, string> = {};
+      const lines = currentFrequenciesRaw.split("\n");
+      for (let index = 0; index < lines.length; index++) {
+        const line = lines[index];
+        const mhzMatch = line.match(/cpu MHz\s*:\s*(\d+\.?\d*)/);
+        if (mhzMatch) {
+          currentFrequencies[index + 1] = mhzMatch[1] ?? "unknown";
+        }
+      }
+
+      return {
+        model: model
+          .replace(/Model name\s*:/i, "")
+          .replace(/@ .*GHz/i, "")
+          .trim(),
+        frequency:
+          cpuGHz ||
+          Math.max(
+            ...Object.values(currentFrequencies).map(Number),
+          ).toString() ||
+          "unknown",
+        cpus: currentFrequencies,
+      };
+    } catch (error) {
+      this.logger.error(`Error detecting CPU info: ${error}`);
+      return {
+        model: "unknown",
+        frequency: {},
+        cpus: {},
+      };
+    }
   }
 }
