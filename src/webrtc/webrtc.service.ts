@@ -98,11 +98,17 @@ export class WebrtcService {
               isLan: this.isSameLAN(peerConnection),
             };
 
-            void this.redis.hset(
-              `latency-test:${sessionId}`,
-              region.toLowerCase().replace(" ", "_"),
-              JSON.stringify(results),
-            );
+            const latencyTestKey = `latency-test:${sessionId}`;
+
+            void this.redis
+              .multi()
+              .hset(
+                latencyTestKey,
+                region.toLowerCase().replace(" ", "_"),
+                JSON.stringify(results),
+              )
+              .expire(latencyTestKey, 60 * 60)
+              .exec();
 
             datachannel.sendMessage(
               JSON.stringify({
