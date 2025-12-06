@@ -43,7 +43,7 @@ export class KubernetesService {
   }
 
   public async getNodeSupportsCpuPinning(node: V1Node) {
-    return node.metadata?.annotations?.["k3s.io/node-args"].includes(
+    return node.metadata?.annotations?.["k3s.io/node-args"]?.includes(
       "cpu-manager-policy=static",
     );
   }
