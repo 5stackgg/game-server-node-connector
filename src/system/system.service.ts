@@ -91,7 +91,7 @@ export class SystemService {
       supportsCpuPinning,
       csBuild: await this.getCsVersion(),
       node: this.nodeName,
-      cpuGovernorInfo: await this.getCPUGovernorInfo(),
+      cpuGovernorInfo: await this.getCPUFrequncyGovernorInfo(),
       cpuFrequencyInfo: await this.getCPUFrequncyInfo(),
     });
   }
@@ -114,7 +114,7 @@ export class SystemService {
     return parsed?.AppState?.buildid;
   }
 
-  private async getCPUGovernorInfo(): Promise<{
+  private async getCPUFrequncyGovernorInfo(): Promise<{
     cpus: Record<number, string>;
     governor: string;
   }> {
@@ -160,6 +160,29 @@ export class SystemService {
     frequency: Record<number, string>;
     cpus: Record<number, string>;
   }> {
+    let cpuGHz = await this.getCPUFrequncyInfoFromModel();
+
+    if (!cpuGHz) {
+      cpuGHz = await this.getCPUFrequncyInfoFromDmidecode();
+    }
+
+    if (!cpuGHz) {
+      cpuGHz = await this.getCPUFrequncyInfoFromLscpu();
+    }
+
+    const currentFrequencies = await this.getCurrentCPUFrequencyInfo();
+
+    return {
+      model: await this.getCpuModelInfo(),
+      frequency:
+        cpuGHz ||
+        Math.max(...Object.values(currentFrequencies).map(Number)).toString() ||
+        "unknown",
+      cpus: currentFrequencies,
+    };
+  }
+
+  private async getCPUFrequncyInfoFromFiles() {
     const frequencies: Record<number, string> = {};
     const cpuFrequencyFiles = glob.sync(
       "/host-cpu/cpu*/cpufreq/cpuinfo_max_freq",
@@ -177,64 +200,11 @@ export class SystemService {
       }
     }
 
+    return frequencies;
+  }
+
+  private async getCurrentCPUFrequencyInfo() {
     try {
-      const { execSync } = require("child_process");
-
-      const model = execSync("lscpu | grep 'Model name'", {
-        encoding: "utf8",
-      }).trim();
-
-      let cpuGHz: string | undefined;
-
-      if (!cpuGHz) {
-        const modelGHzMatch = model.match(/(\d+\.?\d*)\s*GHz/i);
-
-        if (modelGHzMatch) {
-          cpuGHz = modelGHzMatch.at(1);
-        }
-      }
-
-      if (!cpuGHz) {
-        let dmidecodeOutput: string | null = execSync(
-          `dmidecode -t processor`,
-        ).toString();
-
-        if (dmidecodeOutput) {
-          const currentSpeedMatch = dmidecodeOutput.match(
-            /Current Speed:\s*(\d+)\s*MHz/i,
-          );
-
-          if (currentSpeedMatch) {
-            cpuGHz = currentSpeedMatch.at(1);
-          }
-
-          if (!cpuGHz) {
-            const maxSpeedMatch = dmidecodeOutput.match(
-              /Max Speed:\s*(\d+)\s*MHz/i,
-            );
-            if (maxSpeedMatch) {
-              cpuGHz = maxSpeedMatch.at(1);
-            }
-          }
-
-          if (cpuGHz) {
-            cpuGHz = (parseInt(cpuGHz) / 1000).toString();
-          }
-        }
-      }
-
-      if (!cpuGHz) {
-        const maxMHz = execSync("lscpu | grep 'CPU max MHz:'", {
-          encoding: "utf8",
-        }).trim();
-
-        const maxMHzMatch = maxMHz.match(/CPU max MHz:\s*(\d+\.?\d*)/i);
-        if (maxMHzMatch) {
-          const mhzValue = parseFloat(maxMHzMatch[1] ?? "0");
-          cpuGHz = (mhzValue / 1000).toString();
-        }
-      }
-
       const currentFrequenciesRaw = execSync("grep 'cpu MHz' /proc/cpuinfo", {
         encoding: "utf8",
       }).trim();
@@ -249,26 +219,97 @@ export class SystemService {
         }
       }
 
-      return {
-        model: model
-          .replace(/Model name\s*:/i, "")
-          .replace(/@ .*GHz/i, "")
-          .trim(),
-        frequency:
-          cpuGHz ||
-          Math.max(
-            ...Object.values(currentFrequencies).map(Number),
-          ).toString() ||
-          "unknown",
-        cpus: currentFrequencies,
-      };
+      return currentFrequencies;
     } catch (error) {
-      this.logger.error(`Error detecting CPU info: ${error}`);
-      return {
-        model: "unknown",
-        frequency: {},
-        cpus: {},
-      };
+      this.logger.error(`Error getting current CPU frequency: ${error}`);
+    }
+    return {};
+  }
+
+  private async getCpuModelInfo() {
+    try {
+      const model = execSync("lscpu | grep 'Model name' | head -n1", {
+        encoding: "utf8",
+      });
+
+      return model;
+    } catch (error) {
+      this.logger.error(`Error getting CPU model: ${error}`);
+    }
+
+    return "unknown";
+  }
+
+  private async getCPUFrequncyInfoFromModel() {
+    const model = await this.getCpuModelInfo();
+
+    if (!model) {
+      return;
+    }
+
+    let cpuGHz: string | undefined;
+
+    if (!cpuGHz) {
+      const modelGHzMatch = model.match(/(\d+\.?\d*)\s*GHz/i);
+
+      if (modelGHzMatch) {
+        cpuGHz = modelGHzMatch.at(1);
+      }
+    }
+
+    return cpuGHz;
+  }
+
+  private async getCPUFrequncyInfoFromDmidecode() {
+    try {
+      let cpuGHz: string | undefined;
+
+      let dmidecodeOutput: string | null = execSync(
+        `dmidecode -t processor`,
+      ).toString();
+
+      if (dmidecodeOutput) {
+        const currentSpeedMatch = dmidecodeOutput.match(
+          /Current Speed:\s*(\d+)\s*MHz/i,
+        );
+
+        if (currentSpeedMatch) {
+          cpuGHz = currentSpeedMatch.at(1);
+        }
+
+        if (!cpuGHz) {
+          const maxSpeedMatch = dmidecodeOutput.match(
+            /Max Speed:\s*(\d+)\s*MHz/i,
+          );
+          if (maxSpeedMatch) {
+            cpuGHz = maxSpeedMatch.at(1);
+          }
+        }
+
+        if (cpuGHz) {
+          cpuGHz = (parseInt(cpuGHz) / 1000).toString();
+        }
+      }
+
+      return cpuGHz;
+    } catch (error) {
+      this.logger.error(`Error getting CPU frequency from dmidecode: ${error}`);
+    }
+  }
+
+  private async getCPUFrequncyInfoFromLscpu() {
+    try {
+      const maxMHz = execSync("lscpu | grep 'CPU max MHz:' | head -n1", {
+        encoding: "utf8",
+      }).trim();
+
+      const maxMHzMatch = maxMHz.match(/CPU max MHz:\s*(\d+\.?\d*)/i);
+      if (maxMHzMatch) {
+        const mhzValue = parseFloat(maxMHzMatch[1] ?? "0");
+        return (mhzValue / 1000).toString();
+      }
+    } catch (error) {
+      this.logger.error(`Error getting CPU frequency from lscpu: ${error}`);
     }
   }
 }
