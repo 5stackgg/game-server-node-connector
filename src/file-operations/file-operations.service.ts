@@ -5,9 +5,9 @@ import {
   BadRequestException,
   Logger,
 } from "@nestjs/common";
-import * as fs from "fs";
+import * as fs from "fs/promises";
+import { constants } from "fs";
 import * as path from "path";
-import { promisify } from "util";
 import {
   FileItemResponse,
   FileListResponse,
@@ -15,29 +15,15 @@ import {
   FileStatsResponse,
 } from "./dto/file-operation.dto";
 
-const readdir = promisify(fs.readdir);
-const readFile = promisify(fs.readFile);
-const writeFile = promisify(fs.writeFile);
-const mkdir = promisify(fs.mkdir);
-const unlink = promisify(fs.unlink);
-const rmdir = promisify(fs.rmdir);
-const rename = promisify(fs.rename);
-const stat = promisify(fs.stat);
-const access = promisify(fs.access);
-
 @Injectable()
 export class FileOperationsService {
   private readonly allowedBasePaths = ["/servers/", "/custom-plugins"];
   private readonly logger = new Logger(FileOperationsService.name);
 
-  /**
-   * Validates and normalizes a path to prevent path traversal attacks
-   */
   private validatePath(basePath: string, userPath: string = ""): string {
     const normalizedBase = path.normalize(basePath);
     const fullPath = path.normalize(path.join(normalizedBase, userPath));
 
-    // Check if base path is in allowed list
     const isAllowed = this.allowedBasePaths.some((allowed) =>
       normalizedBase.startsWith(allowed),
     );
@@ -47,7 +33,6 @@ export class FileOperationsService {
       throw new ForbiddenException("Invalid base path");
     }
 
-    // Prevent path traversal
     if (!fullPath.startsWith(normalizedBase)) {
       this.logger.warn(
         `Path traversal detected: ${fullPath} does not start with ${normalizedBase}`,
@@ -58,21 +43,15 @@ export class FileOperationsService {
     return fullPath;
   }
 
-  /**
-   * Check if a path exists
-   */
   private async pathExists(filePath: string): Promise<boolean> {
     try {
-      await access(filePath, fs.constants.F_OK);
+      await fs.access(filePath, constants.F_OK);
       return true;
     } catch {
       return false;
     }
   }
 
-  /**
-   * List directory contents
-   */
   async listDirectory(
     basePath: string,
     relativePath: string = "",
@@ -83,18 +62,18 @@ export class FileOperationsService {
       throw new NotFoundException(`Directory not found: ${relativePath}`);
     }
 
-    const stats = await stat(fullPath);
+    const stats = await fs.stat(fullPath);
     if (!stats.isDirectory()) {
       throw new BadRequestException(`Path is not a directory: ${relativePath}`);
     }
 
-    const entries = await readdir(fullPath);
+    const entries = await fs.readdir(fullPath);
     const items: FileItemResponse[] = [];
 
     for (const entry of entries) {
       try {
         const entryPath = path.join(fullPath, entry);
-        const entryStats = await stat(entryPath);
+        const entryStats = await fs.stat(entryPath);
         const relativEntryPath = path.join(relativePath, entry);
 
         items.push({
@@ -107,11 +86,9 @@ export class FileOperationsService {
         });
       } catch (error) {
         this.logger.warn(`Error reading entry ${entry}: ${error}`);
-        // Skip entries that can't be read
       }
     }
 
-    // Sort directories first, then files, both alphabetically
     items.sort((a, b) => {
       if (a.isDirectory && !b.isDirectory) return -1;
       if (!a.isDirectory && b.isDirectory) return 1;
@@ -124,9 +101,6 @@ export class FileOperationsService {
     };
   }
 
-  /**
-   * Read file content
-   */
   async readFile(
     basePath: string,
     filePath: string,
@@ -137,12 +111,12 @@ export class FileOperationsService {
       throw new NotFoundException(`File not found: ${filePath}`);
     }
 
-    const stats = await stat(fullPath);
+    const stats = await fs.stat(fullPath);
     if (!stats.isFile()) {
       throw new BadRequestException(`Path is not a file: ${filePath}`);
     }
 
-    const content = await readFile(fullPath, "utf8");
+    const content = await fs.readFile(fullPath, "utf8");
 
     return {
       content,
@@ -151,9 +125,6 @@ export class FileOperationsService {
     };
   }
 
-  /**
-   * Create a directory (skips if already exists)
-   */
   async createDirectory(basePath: string, dirPath: string): Promise<void> {
     const fullPath = this.validatePath(basePath, dirPath);
 
@@ -162,13 +133,10 @@ export class FileOperationsService {
       return;
     }
 
-    await mkdir(fullPath, { recursive: true });
+    await fs.mkdir(fullPath, { recursive: true });
     this.logger.log(`Directory created: ${fullPath}`);
   }
 
-  /**
-   * Delete a file or directory
-   */
   async deleteFileOrDirectory(
     basePath: string,
     itemPath: string,
@@ -179,40 +147,34 @@ export class FileOperationsService {
       throw new NotFoundException(`Path not found: ${itemPath}`);
     }
 
-    const stats = await stat(fullPath);
+    const stats = await fs.stat(fullPath);
 
     if (stats.isDirectory()) {
       await this.deleteDirectoryRecursive(fullPath);
     } else {
-      await unlink(fullPath);
+      await fs.unlink(fullPath);
     }
 
     this.logger.log(`Deleted: ${fullPath}`);
   }
 
-  /**
-   * Recursively delete a directory
-   */
   private async deleteDirectoryRecursive(dirPath: string): Promise<void> {
-    const entries = await readdir(dirPath);
+    const entries = await fs.readdir(dirPath);
 
     for (const entry of entries) {
       const entryPath = path.join(dirPath, entry);
-      const stats = await stat(entryPath);
+      const stats = await fs.stat(entryPath);
 
       if (stats.isDirectory()) {
         await this.deleteDirectoryRecursive(entryPath);
       } else {
-        await unlink(entryPath);
+        await fs.unlink(entryPath);
       }
     }
 
-    await rmdir(dirPath);
+    await fs.rmdir(dirPath);
   }
 
-  /**
-   * Move a file or directory
-   */
   async moveFileOrDirectory(
     basePath: string,
     sourcePath: string,
@@ -229,19 +191,15 @@ export class FileOperationsService {
       throw new BadRequestException(`Destination already exists: ${destPath}`);
     }
 
-    // Ensure destination directory exists
     const destDir = path.dirname(fullDestPath);
     if (!(await this.pathExists(destDir))) {
-      await mkdir(destDir, { recursive: true });
+      await fs.mkdir(destDir, { recursive: true });
     }
 
-    await rename(fullSourcePath, fullDestPath);
+    await fs.rename(fullSourcePath, fullDestPath);
     this.logger.log(`Moved: ${fullSourcePath} -> ${fullDestPath}`);
   }
 
-  /**
-   * Rename a file or directory
-   */
   async renameFileOrDirectory(
     basePath: string,
     oldPath: string,
@@ -258,13 +216,10 @@ export class FileOperationsService {
       throw new BadRequestException(`Destination already exists: ${newPath}`);
     }
 
-    await rename(fullOldPath, fullNewPath);
+    await fs.rename(fullOldPath, fullNewPath);
     this.logger.log(`Renamed: ${fullOldPath} -> ${fullNewPath}`);
   }
 
-  /**
-   * Upload/write a file
-   */
   async uploadFile(
     basePath: string,
     filePath: string,
@@ -272,19 +227,15 @@ export class FileOperationsService {
   ): Promise<void> {
     const fullPath = this.validatePath(basePath, filePath);
 
-    // Ensure directory exists
     const dir = path.dirname(fullPath);
     if (!(await this.pathExists(dir))) {
-      await mkdir(dir, { recursive: true });
+      await fs.mkdir(dir, { recursive: true });
     }
 
-    await writeFile(fullPath, buffer);
+    await fs.writeFile(fullPath, buffer);
     this.logger.log(`File uploaded: ${fullPath}`);
   }
 
-  /**
-   * Write text content to a file
-   */
   async writeTextFile(
     basePath: string,
     filePath: string,
@@ -292,19 +243,15 @@ export class FileOperationsService {
   ): Promise<void> {
     const fullPath = this.validatePath(basePath, filePath);
 
-    // Ensure directory exists
     const dir = path.dirname(fullPath);
     if (!(await this.pathExists(dir))) {
-      await mkdir(dir, { recursive: true });
+      await fs.mkdir(dir, { recursive: true });
     }
 
-    await writeFile(fullPath, content, "utf8");
+    await fs.writeFile(fullPath, content, "utf8");
     this.logger.log(`File written: ${fullPath}`);
   }
 
-  /**
-   * Get file or directory stats
-   */
   async getFileStats(
     basePath: string,
     filePath: string,
@@ -315,7 +262,7 @@ export class FileOperationsService {
       throw new NotFoundException(`Path not found: ${filePath}`);
     }
 
-    const stats = await stat(fullPath);
+    const stats = await fs.stat(fullPath);
 
     return {
       name: path.basename(fullPath),
