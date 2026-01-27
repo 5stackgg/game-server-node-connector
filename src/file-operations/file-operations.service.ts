@@ -181,14 +181,33 @@ export class FileOperationsService {
     destPath: string,
   ): Promise<void> {
     const fullSourcePath = this.validatePath(basePath, sourcePath);
-    const fullDestPath = this.validatePath(basePath, destPath);
+    let fullDestPath = this.validatePath(basePath, destPath);
 
     if (!(await this.pathExists(fullSourcePath))) {
       throw new NotFoundException(`Source path not found: ${sourcePath}`);
     }
 
+    // If destination is an existing directory, move the source into it
     if (await this.pathExists(fullDestPath)) {
-      throw new BadRequestException(`Destination already exists: ${destPath}`);
+      const destStats = await fs.stat(fullDestPath);
+      if (destStats.isDirectory()) {
+        const sourceName = path.basename(fullSourcePath);
+        fullDestPath = path.join(fullDestPath, sourceName);
+        // Re-validate the new destination path
+        this.validatePath(basePath, path.join(destPath, sourceName));
+      } else {
+        throw new BadRequestException(
+          `Destination already exists: ${destPath}`,
+        );
+      }
+    }
+
+    // Check if the final destination path already exists
+    if (await this.pathExists(fullDestPath)) {
+      const sourceName = path.basename(fullSourcePath);
+      throw new BadRequestException(
+        `Destination already exists: ${path.join(destPath, sourceName)}`,
+      );
     }
 
     const destDir = path.dirname(fullDestPath);
