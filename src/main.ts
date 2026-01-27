@@ -6,11 +6,19 @@ import { WsAdapter } from "@nestjs/platform-ws";
 import { Transport } from "@nestjs/microservices";
 import { RedisManagerService } from "./redis/redis-manager/redis-manager.service";
 import { create } from "express-handlebars";
+import { ValidationPipe } from "@nestjs/common";
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   app.enableShutdownHooks();
+
+  app.useGlobalPipes(
+    new ValidationPipe({
+      transform: true,
+      whitelist: true,
+    }),
+  );
 
   app.set("trust proxy", () => {
     // TODO - trust proxy

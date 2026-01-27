@@ -11,6 +11,7 @@ import { OfflineMatchesModule } from "./offline-matches/offline-matches.module";
 import { ClientsModule, Transport } from "@nestjs/microservices";
 import { RedisManagerService } from "./redis/redis-manager/redis-manager.service";
 import { RconModule } from "./rcon/rcon.module";
+import { FileOperationsModule } from "./file-operations/file-operations.module";
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { RconModule } from "./rcon/rcon.module";
     DemosModule,
     OfflineMatchesModule,
     RconModule,
+    FileOperationsModule,
   ],
   controllers: [],
   providers: [loggerFactory()],

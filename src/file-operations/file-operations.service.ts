@@ -1,0 +1,330 @@
+import {
+  Injectable,
+  ForbiddenException,
+  NotFoundException,
+  BadRequestException,
+  Logger,
+} from "@nestjs/common";
+import * as fs from "fs";
+import * as path from "path";
+import { promisify } from "util";
+import {
+  FileItemResponse,
+  FileListResponse,
+  FileContentResponse,
+  FileStatsResponse,
+} from "./dto/file-operation.dto";
+
+const readdir = promisify(fs.readdir);
+const readFile = promisify(fs.readFile);
+const writeFile = promisify(fs.writeFile);
+const mkdir = promisify(fs.mkdir);
+const unlink = promisify(fs.unlink);
+const rmdir = promisify(fs.rmdir);
+const rename = promisify(fs.rename);
+const stat = promisify(fs.stat);
+const access = promisify(fs.access);
+
+@Injectable()
+export class FileOperationsService {
+  private readonly allowedBasePaths = [
+    "/servers/",
+    "/custom-plugins",
+  ];
+  private readonly logger = new Logger(FileOperationsService.name);
+
+  /**
+   * Validates and normalizes a path to prevent path traversal attacks
+   */
+  private validatePath(basePath: string, userPath: string = ""): string {
+    const normalizedBase = path.normalize(basePath);
+    const fullPath = path.normalize(path.join(normalizedBase, userPath));
+
+    // Check if base path is in allowed list
+    const isAllowed = this.allowedBasePaths.some((allowed) =>
+      normalizedBase.startsWith(allowed),
+    );
+
+    if (!isAllowed) {
+      this.logger.warn(`Invalid base path attempted: ${normalizedBase}`);
+      throw new ForbiddenException("Invalid base path");
+    }
+
+    // Prevent path traversal
+    if (!fullPath.startsWith(normalizedBase)) {
+      this.logger.warn(
+        `Path traversal detected: ${fullPath} does not start with ${normalizedBase}`,
+      );
+      throw new ForbiddenException("Path traversal detected");
+    }
+
+    return fullPath;
+  }
+
+  /**
+   * Check if a path exists
+   */
+  private async pathExists(filePath: string): Promise<boolean> {
+    try {
+      await access(filePath, fs.constants.F_OK);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * List directory contents
+   */
+  async listDirectory(
+    basePath: string,
+    relativePath: string = "",
+  ): Promise<FileListResponse> {
+    const fullPath = this.validatePath(basePath, relativePath);
+
+    if (!(await this.pathExists(fullPath))) {
+      throw new NotFoundException(`Directory not found: ${relativePath}`);
+    }
+
+    const stats = await stat(fullPath);
+    if (!stats.isDirectory()) {
+      throw new BadRequestException(`Path is not a directory: ${relativePath}`);
+    }
+
+    const entries = await readdir(fullPath);
+    const items: FileItemResponse[] = [];
+
+    for (const entry of entries) {
+      try {
+        const entryPath = path.join(fullPath, entry);
+        const entryStats = await stat(entryPath);
+        const relativEntryPath = path.join(relativePath, entry);
+
+        items.push({
+          name: entry,
+          path: relativEntryPath,
+          type: entryStats.isDirectory() ? "directory" : "file",
+          size: entryStats.size,
+          modified: entryStats.mtime,
+          isDirectory: entryStats.isDirectory(),
+        });
+      } catch (error) {
+        this.logger.warn(`Error reading entry ${entry}: ${error}`);
+        // Skip entries that can't be read
+      }
+    }
+
+    // Sort directories first, then files, both alphabetically
+    items.sort((a, b) => {
+      if (a.isDirectory && !b.isDirectory) return -1;
+      if (!a.isDirectory && b.isDirectory) return 1;
+      return a.name.localeCompare(b.name);
+    });
+
+    return {
+      items,
+      currentPath: relativePath,
+    };
+  }
+
+  /**
+   * Read file content
+   */
+  async readFile(
+    basePath: string,
+    filePath: string,
+  ): Promise<FileContentResponse> {
+    const fullPath = this.validatePath(basePath, filePath);
+
+    if (!(await this.pathExists(fullPath))) {
+      throw new NotFoundException(`File not found: ${filePath}`);
+    }
+
+    const stats = await stat(fullPath);
+    if (!stats.isFile()) {
+      throw new BadRequestException(`Path is not a file: ${filePath}`);
+    }
+
+    const content = await readFile(fullPath, "utf8");
+
+    return {
+      content,
+      path: filePath,
+      size: stats.size,
+    };
+  }
+
+  /**
+   * Create a directory
+   */
+  async createDirectory(basePath: string, dirPath: string): Promise<void> {
+    const fullPath = this.validatePath(basePath, dirPath);
+
+    if (await this.pathExists(fullPath)) {
+      throw new BadRequestException(`Directory already exists: ${dirPath}`);
+    }
+
+    await mkdir(fullPath, { recursive: true });
+    this.logger.log(`Directory created: ${fullPath}`);
+  }
+
+  /**
+   * Delete a file or directory
+   */
+  async deleteFileOrDirectory(basePath: string, itemPath: string): Promise<void> {
+    const fullPath = this.validatePath(basePath, itemPath);
+
+    if (!(await this.pathExists(fullPath))) {
+      throw new NotFoundException(`Path not found: ${itemPath}`);
+    }
+
+    const stats = await stat(fullPath);
+
+    if (stats.isDirectory()) {
+      await this.deleteDirectoryRecursive(fullPath);
+    } else {
+      await unlink(fullPath);
+    }
+
+    this.logger.log(`Deleted: ${fullPath}`);
+  }
+
+  /**
+   * Recursively delete a directory
+   */
+  private async deleteDirectoryRecursive(dirPath: string): Promise<void> {
+    const entries = await readdir(dirPath);
+
+    for (const entry of entries) {
+      const entryPath = path.join(dirPath, entry);
+      const stats = await stat(entryPath);
+
+      if (stats.isDirectory()) {
+        await this.deleteDirectoryRecursive(entryPath);
+      } else {
+        await unlink(entryPath);
+      }
+    }
+
+    await rmdir(dirPath);
+  }
+
+  /**
+   * Move a file or directory
+   */
+  async moveFileOrDirectory(
+    basePath: string,
+    sourcePath: string,
+    destPath: string,
+  ): Promise<void> {
+    const fullSourcePath = this.validatePath(basePath, sourcePath);
+    const fullDestPath = this.validatePath(basePath, destPath);
+
+    if (!(await this.pathExists(fullSourcePath))) {
+      throw new NotFoundException(`Source path not found: ${sourcePath}`);
+    }
+
+    if (await this.pathExists(fullDestPath)) {
+      throw new BadRequestException(
+        `Destination already exists: ${destPath}`,
+      );
+    }
+
+    // Ensure destination directory exists
+    const destDir = path.dirname(fullDestPath);
+    if (!(await this.pathExists(destDir))) {
+      await mkdir(destDir, { recursive: true });
+    }
+
+    await rename(fullSourcePath, fullDestPath);
+    this.logger.log(`Moved: ${fullSourcePath} -> ${fullDestPath}`);
+  }
+
+  /**
+   * Rename a file or directory
+   */
+  async renameFileOrDirectory(
+    basePath: string,
+    oldPath: string,
+    newPath: string,
+  ): Promise<void> {
+    const fullOldPath = this.validatePath(basePath, oldPath);
+    const fullNewPath = this.validatePath(basePath, newPath);
+
+    if (!(await this.pathExists(fullOldPath))) {
+      throw new NotFoundException(`Path not found: ${oldPath}`);
+    }
+
+    if (await this.pathExists(fullNewPath)) {
+      throw new BadRequestException(`Destination already exists: ${newPath}`);
+    }
+
+    await rename(fullOldPath, fullNewPath);
+    this.logger.log(`Renamed: ${fullOldPath} -> ${fullNewPath}`);
+  }
+
+  /**
+   * Upload/write a file
+   */
+  async uploadFile(
+    basePath: string,
+    filePath: string,
+    buffer: Buffer,
+  ): Promise<void> {
+    const fullPath = this.validatePath(basePath, filePath);
+
+    // Ensure directory exists
+    const dir = path.dirname(fullPath);
+    if (!(await this.pathExists(dir))) {
+      await mkdir(dir, { recursive: true });
+    }
+
+    await writeFile(fullPath, buffer);
+    this.logger.log(`File uploaded: ${fullPath}`);
+  }
+
+  /**
+   * Write text content to a file
+   */
+  async writeTextFile(
+    basePath: string,
+    filePath: string,
+    content: string,
+  ): Promise<void> {
+    const fullPath = this.validatePath(basePath, filePath);
+
+    // Ensure directory exists
+    const dir = path.dirname(fullPath);
+    if (!(await this.pathExists(dir))) {
+      await mkdir(dir, { recursive: true });
+    }
+
+    await writeFile(fullPath, content, "utf8");
+    this.logger.log(`File written: ${fullPath}`);
+  }
+
+  /**
+   * Get file or directory stats
+   */
+  async getFileStats(
+    basePath: string,
+    filePath: string,
+  ): Promise<FileStatsResponse> {
+    const fullPath = this.validatePath(basePath, filePath);
+
+    if (!(await this.pathExists(fullPath))) {
+      throw new NotFoundException(`Path not found: ${filePath}`);
+    }
+
+    const stats = await stat(fullPath);
+
+    return {
+      name: path.basename(fullPath),
+      path: filePath,
+      size: stats.size,
+      modified: stats.mtime,
+      isDirectory: stats.isDirectory(),
+      isFile: stats.isFile(),
+    };
+  }
+}
