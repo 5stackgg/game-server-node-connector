@@ -27,10 +27,7 @@ const access = promisify(fs.access);
 
 @Injectable()
 export class FileOperationsService {
-  private readonly allowedBasePaths = [
-    "/servers/",
-    "/custom-plugins",
-  ];
+  private readonly allowedBasePaths = ["/servers/", "/custom-plugins"];
   private readonly logger = new Logger(FileOperationsService.name);
 
   /**
@@ -155,13 +152,14 @@ export class FileOperationsService {
   }
 
   /**
-   * Create a directory
+   * Create a directory (skips if already exists)
    */
   async createDirectory(basePath: string, dirPath: string): Promise<void> {
     const fullPath = this.validatePath(basePath, dirPath);
 
     if (await this.pathExists(fullPath)) {
-      throw new BadRequestException(`Directory already exists: ${dirPath}`);
+      this.logger.log(`Directory already exists, skipping: ${fullPath}`);
+      return;
     }
 
     await mkdir(fullPath, { recursive: true });
@@ -171,7 +169,10 @@ export class FileOperationsService {
   /**
    * Delete a file or directory
    */
-  async deleteFileOrDirectory(basePath: string, itemPath: string): Promise<void> {
+  async deleteFileOrDirectory(
+    basePath: string,
+    itemPath: string,
+  ): Promise<void> {
     const fullPath = this.validatePath(basePath, itemPath);
 
     if (!(await this.pathExists(fullPath))) {
@@ -225,9 +226,7 @@ export class FileOperationsService {
     }
 
     if (await this.pathExists(fullDestPath)) {
-      throw new BadRequestException(
-        `Destination already exists: ${destPath}`,
-      );
+      throw new BadRequestException(`Destination already exists: ${destPath}`);
     }
 
     // Ensure destination directory exists

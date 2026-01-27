@@ -12,7 +12,6 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
-import { ThrottlerGuard } from "@nestjs/throttler";
 import { FileOperationsService } from "./file-operations.service";
 import {
   ListDirectoryDto,
@@ -27,18 +26,12 @@ import {
 } from "./dto/file-operation.dto";
 
 @Controller("file-operations")
-@UseGuards(ThrottlerGuard)
 export class FileOperationsController {
-  constructor(
-    private readonly fileOperationsService: FileOperationsService,
-  ) {}
+  constructor(private readonly fileOperationsService: FileOperationsService) {}
 
   @Get("list")
   async listDirectory(@Query() query: ListDirectoryDto) {
-    return this.fileOperationsService.listDirectory(
-      query.basePath,
-      query.path,
-    );
+    return this.fileOperationsService.listDirectory(query.basePath, query.path);
   }
 
   @Get("read")
