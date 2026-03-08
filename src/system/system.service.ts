@@ -90,6 +90,7 @@ export class SystemService {
       supportsLowLatency,
       supportsCpuPinning,
       csBuild: await this.getCsVersion(),
+      csgoBuild: await this.getCsgoBuildId(),
       node: this.nodeName,
       cpuGovernorInfo: await this.getCPUFrequncyGovernorInfo(),
       cpuFrequencyInfo: await this.getCPUFrequncyInfo(),
@@ -103,6 +104,24 @@ export class SystemService {
 
     const version = execSync(
       "cat /serverfiles/steamapps/appmanifest_730.acf",
+    ).toString();
+
+    const parsed = vdf.parse(version) as {
+      AppState?: {
+        buildid?: number;
+      };
+    };
+
+    return parsed?.AppState?.buildid;
+  }
+
+  private async getCsgoBuildId() {
+    if (!fs.existsSync("/serverfiles-csgo/steamapps/appmanifest_740.acf")) {
+      return;
+    }
+
+    const version = execSync(
+      "cat /serverfiles-csgo/steamapps/appmanifest_740.acf",
     ).toString();
 
     const parsed = vdf.parse(version) as {
