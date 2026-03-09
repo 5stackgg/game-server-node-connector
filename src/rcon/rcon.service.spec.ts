@@ -121,4 +121,64 @@ describe("RconService", () => {
     expect(client!.on).toHaveBeenCalledWith("error", expect.any(Function));
     expect(client!.on).toHaveBeenCalledWith("end", expect.any(Function));
   });
+
+  it("connection timeout fires and cleans up", async () => {
+    const { service } = createService();
+
+    const client = await service.connect("match-1");
+
+    // Advance past the 3000ms CONNECTION_TIMEOUT
+    await jest.advanceTimersByTimeAsync(3000);
+
+    // After timeout, the connection should be cleaned up
+    // Next connect should create a new instance
+    const client2 = await service.connect("match-1");
+    expect(client2).not.toBe(client);
+  });
+
+  it("send override converts UTF-8 buffer correctly", async () => {
+    const { service } = createService();
+
+    const client = await service.connect("match-1");
+
+    await client!.send("test command");
+
+    expect(client!.sendRaw).toHaveBeenCalledWith(
+      Buffer.from("test command", "utf-8"),
+    );
+  });
+
+  it("error event handler triggers disconnect", async () => {
+    const { service } = createService();
+
+    const client = await service.connect("match-1");
+
+    // Find the error handler from the .on() calls
+    const onCalls = (client!.on as jest.Mock).mock.calls;
+    const errorCall = onCalls.find(([event]: [string]) => event === "error");
+    const errorHandler = errorCall[1];
+
+    await errorHandler();
+
+    // After error handler runs disconnect, next connect should create a new instance
+    const client2 = await service.connect("match-1");
+    expect(client2).not.toBe(client);
+  });
+
+  it("end event handler removes connection from pool", async () => {
+    const { service } = createService();
+
+    const client = await service.connect("match-1");
+
+    // Find the end handler from the .on() calls
+    const onCalls = (client!.on as jest.Mock).mock.calls;
+    const endCall = onCalls.find(([event]: [string]) => event === "end");
+    const endHandler = endCall[1];
+
+    endHandler();
+
+    // After end handler removes connection, next connect should create a new instance
+    const client2 = await service.connect("match-1");
+    expect(client2).not.toBe(client);
+  });
 });
