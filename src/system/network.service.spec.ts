@@ -1,12 +1,13 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { NetworkService } from "./network.service";
+import { loggerFactory } from "src/utilities/LoggerFactory";
 
-describe("SystemService", () => {
+describe("NetworkService", () => {
   let service: NetworkService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [NetworkService],
+      providers: [NetworkService, loggerFactory()],
     }).compile();
 
     service = module.get<NetworkService>(NetworkService);

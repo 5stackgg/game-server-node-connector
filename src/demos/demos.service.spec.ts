@@ -47,8 +47,10 @@ function createService() {
 
 describe("DemosService", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
     mockGlob.mockResolvedValue([]);
+    (fs.statSync as jest.Mock).mockReturnValue({ size: 1024 });
+    (fs.createReadStream as jest.Mock).mockReturnValue({ pipe: jest.fn() });
   });
 
   describe("uploadDemos", () => {
