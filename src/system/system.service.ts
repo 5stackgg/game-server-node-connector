@@ -191,19 +191,20 @@ export class SystemService {
 
     const currentFrequencies = await this.getCurrentCPUFrequencyInfo();
 
-    const currentMaxGHz =
-      Object.values(currentFrequencies).length > 0
-        ? (
-            Math.max(...Object.values(currentFrequencies).map(Number)) / 1000
-          ).toString()
-        : undefined;
-
+    // Primary: use static source if available
     let frequency: string;
-    if (cpuGHz && currentMaxGHz) {
-      frequency =
-        parseFloat(currentMaxGHz) > parseFloat(cpuGHz) ? currentMaxGHz : cpuGHz;
+    if (cpuGHz) {
+      frequency = cpuGHz;
     } else {
-      frequency = cpuGHz || currentMaxGHz || "unknown";
+      // Fallback: use highest detected frequency from /proc/cpuinfo
+      const currentMaxGHz =
+        Object.values(currentFrequencies).length > 0
+          ? (
+              Math.max(...Object.values(currentFrequencies).map(Number)) / 1000
+            ).toString()
+          : undefined;
+
+      frequency = currentMaxGHz || "unknown";
     }
 
     return {
