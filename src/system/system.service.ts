@@ -176,7 +176,7 @@ export class SystemService {
 
   private async getCPUFrequncyInfo(): Promise<{
     model: string;
-    frequency: Record<number, string>;
+    frequency: string;
     cpus: Record<number, string>;
   }> {
     let cpuGHz = await this.getCPUFrequncyInfoFromModel();
@@ -191,35 +191,26 @@ export class SystemService {
 
     const currentFrequencies = await this.getCurrentCPUFrequencyInfo();
 
-    return {
-      model: await this.getCpuModelInfo(),
-      frequency:
-        cpuGHz ||
-        Math.max(...Object.values(currentFrequencies).map(Number)).toString() ||
-        "unknown",
-      cpus: currentFrequencies,
-    };
-  }
+    const currentMaxGHz =
+      Object.values(currentFrequencies).length > 0
+        ? (
+            Math.max(...Object.values(currentFrequencies).map(Number)) / 1000
+          ).toString()
+        : undefined;
 
-  private async getCPUFrequncyInfoFromFiles() {
-    const frequencies: Record<number, string> = {};
-    const cpuFrequencyFiles = glob.sync(
-      "/host-cpu/cpu*/cpufreq/cpuinfo_max_freq",
-    );
-
-    for (const file of cpuFrequencyFiles) {
-      try {
-        frequencies[
-          parseInt(
-            path.basename(path.dirname(path.dirname(file))).replace("cpu", ""),
-          )
-        ] = fs.readFileSync(file, "utf8").trim();
-      } catch (error) {
-        this.logger.error(`Error getting CPU frequency [${file}]: ${error}`);
-      }
+    let frequency: string;
+    if (cpuGHz && currentMaxGHz) {
+      frequency =
+        parseFloat(currentMaxGHz) > parseFloat(cpuGHz) ? currentMaxGHz : cpuGHz;
+    } else {
+      frequency = cpuGHz || currentMaxGHz || "unknown";
     }
 
-    return frequencies;
+    return {
+      model: await this.getCpuModelInfo(),
+      frequency,
+      cpus: currentFrequencies,
+    };
   }
 
   private async getCurrentCPUFrequencyInfo() {
