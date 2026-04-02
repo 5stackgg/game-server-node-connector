@@ -4,9 +4,7 @@ import {
   IsArray,
   IsOptional,
   IsNumber,
-  ValidateNested,
 } from "class-validator";
-import { Type } from "class-transformer";
 import { Lineup } from "./Lineup";
 import { MatchMap } from "./MatchMap";
 import { MatchOptions } from "./MatchOptions";
