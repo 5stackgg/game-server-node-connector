@@ -2,15 +2,17 @@ import {
   Controller,
   Get,
   Post,
+  Body,
   Render,
-  Req,
   Param,
   Res,
   UseGuards,
+  UsePipes,
+  ValidationPipe,
 } from "@nestjs/common";
 import { OfflineMatchesService } from "./offline-matches.service";
 import { MatchData } from "./types/MatchData";
-import { type Request, type Response } from "express";
+import { type Response } from "express";
 import { BasicGuardGuard } from "./basic-guard.guard";
 import { KubernetesService } from "src/kubernetes/kubernetes.service";
 import { NetworkService } from "src/system/network.service";
@@ -36,10 +38,12 @@ export class OfflineMatchesController {
 
   @Post("matches")
   @UseGuards(BasicGuardGuard)
-  public async generateYaml(@Req() req: Request, @Res() res: Response) {
-    await this.offlineMatchesService.generateYamlFiles(
-      (await req.body) as unknown as MatchData,
-    );
+  @UsePipes(new ValidationPipe({ whitelist: true }))
+  public async generateYaml(
+    @Body() matchData: MatchData,
+    @Res() res: Response,
+  ) {
+    await this.offlineMatchesService.generateYamlFiles(matchData);
     return res.redirect("/");
   }
 
@@ -66,14 +70,13 @@ export class OfflineMatchesController {
 
   @Post("matches/:id")
   @UseGuards(BasicGuardGuard)
+  @UsePipes(new ValidationPipe({ whitelist: true }))
   public async updateMatch(
     @Param("id") id: string,
-    @Req() req: Request,
+    @Body() matchData: MatchData,
     @Res() res: Response,
   ) {
-    await this.offlineMatchesService.updateMatchData(
-      (await req.body) as unknown as MatchData,
-    );
+    await this.offlineMatchesService.updateMatchData(matchData);
     return res.redirect("/");
   }
 
