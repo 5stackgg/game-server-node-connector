@@ -8,6 +8,6 @@ export default (): {
       ? parseInt(process.env.HEALTH_PORT)
       : 8585,
     basicAuthUser: "5s",
-    basicAuthPass: process.env.OFFLINE_MATCHES_PASSWORD || process.env.NODE_NAME as string,
+    basicAuthPass: (process.env.OFFLINE_MATCHES_PASSWORD || process.env.NODE_NAME) as string,
   },
 });
