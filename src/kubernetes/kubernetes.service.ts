@@ -67,9 +67,17 @@ export class KubernetesService {
   }
 
   public async getNode() {
-    return await this.apiClient.readNode({
-      name: this.nodeName,
-    });
+    try {
+      return await this.apiClient.readNode({
+        name: this.nodeName,
+      });
+    } catch (error) {
+      this.logger.error(
+        `Failed to get node '${this.nodeName}' from K8s API`,
+        error instanceof Error ? error.message : error,
+      );
+      throw error;
+    }
   }
 
   public async getNodeStats(node: V1Node) {
@@ -87,6 +95,10 @@ export class KubernetesService {
 
       const metrics = await this.metricsClient.getNodeMetrics();
 
+      const nodeMetric = metrics?.items?.find(
+        (nodeMetric) => nodeMetric.metadata.name === node.metadata?.name,
+      );
+
       return {
         disks: this.getDiskStats(),
         network: this.networkService.getNetworkStats(),
@@ -95,9 +107,7 @@ export class KubernetesService {
         cpuInfo: this.cpuInfo,
         cpuCapacity: parseInt(capacity.cpu),
         nvidiaGPU: allocatable["nvidia.com/gpu"] ? true : false,
-        metrics: metrics.items.find(
-          (nodeMetric) => nodeMetric.metadata.name === node.metadata?.name,
-        ),
+        metrics: nodeMetric,
       };
     } catch (error) {
       if (error instanceof FetchError && error.code !== "404") {
