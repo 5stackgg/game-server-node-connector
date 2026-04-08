@@ -1,11 +1,21 @@
 import os from "os";
-import { spawn } from "child_process";
-import { Injectable, Logger, OnApplicationBootstrap } from "@nestjs/common";
+import { ChildProcess, spawn } from "child_process";
+import {
+  Injectable,
+  Logger,
+  OnApplicationBootstrap,
+  OnApplicationShutdown,
+} from "@nestjs/common";
 
 @Injectable()
-export class NetworkService implements OnApplicationBootstrap {
+export class NetworkService
+  implements OnApplicationBootstrap, OnApplicationShutdown
+{
   public publicIP: string;
   public networkLimit?: number;
+
+  private ipCheckInterval: ReturnType<typeof setInterval>;
+  private spawnedProcesses = new Set<ChildProcess>();
 
   constructor(private readonly logger: Logger) {}
 
@@ -24,12 +34,21 @@ export class NetworkService implements OnApplicationBootstrap {
   public async onApplicationBootstrap() {
     await this.getPublicIP();
 
-    setInterval(
+    this.ipCheckInterval = setInterval(
       async () => {
         await this.getPublicIP();
       },
       5 * 60 * 1000,
     );
+  }
+
+  public async onApplicationShutdown() {
+    clearInterval(this.ipCheckInterval);
+
+    for (const proc of this.spawnedProcesses) {
+      proc.kill();
+    }
+    this.spawnedProcesses.clear();
   }
 
   public getLanIP() {
@@ -305,16 +324,16 @@ export class NetworkService implements OnApplicationBootstrap {
   done`,
       ]);
 
-      process.on(process.env.DEV ? "SIGUSR2" : "SIGTERM", () => {
-        monitor.kill();
-      });
+      this.spawnedProcesses.add(monitor);
 
       monitor.stdin.on("error", async (error) => {
         this.logger.error("Error running processs", error);
+        monitor.kill();
         reject(error);
       });
 
       monitor.stderr.on("data", (error) => {
+        monitor.kill();
         reject(error.toString());
       });
 
@@ -327,6 +346,7 @@ export class NetworkService implements OnApplicationBootstrap {
       });
 
       monitor.on("close", () => {
+        this.spawnedProcesses.delete(monitor);
         resolve(
           returnData || "No data written to memory due to onData() handler",
         );

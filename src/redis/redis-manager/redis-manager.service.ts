@@ -1,21 +1,39 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, OnApplicationShutdown } from "@nestjs/common";
 import IORedis, { Redis, RedisOptions } from "ioredis";
 import { ConfigService } from "@nestjs/config";
 import { RedisConfig } from "../../configs/types/RedisConfig";
 
 @Injectable()
-export class RedisManagerService {
+export class RedisManagerService implements OnApplicationShutdown {
   private config: RedisConfig;
 
   protected connections: {
     [key: string]: Redis;
   } = {};
 
+  private healthCheckIntervals: ReturnType<typeof setInterval>[] = [];
+
   constructor(
     private readonly logger: Logger,
     private readonly configService: ConfigService,
   ) {
     this.config = this.configService.get<RedisConfig>("redis")!;
+  }
+
+  public async onApplicationShutdown() {
+    for (const interval of this.healthCheckIntervals) {
+      clearInterval(interval);
+    }
+    this.healthCheckIntervals = [];
+
+    for (const [name, connection] of Object.entries(this.connections)) {
+      try {
+        connection.disconnect();
+      } catch (error) {
+        this.logger.warn(`Error disconnecting Redis "${name}":`, error);
+      }
+    }
+    this.connections = {};
   }
 
   public getConnection(connection = "default"): Redis {
@@ -45,7 +63,7 @@ export class RedisManagerService {
 
         const pingTimeoutError = `did not receive ping in time (5 seconds)`;
 
-        setInterval(async () => {
+        const healthCheckInterval = setInterval(async () => {
           if (currentConnection.status === "ready") {
             await new Promise(async (resolve, reject) => {
               const timer = setTimeout(() => {
@@ -65,6 +83,8 @@ export class RedisManagerService {
             });
           }
         }, 5000);
+
+        this.healthCheckIntervals.push(healthCheckInterval);
       });
     }
     return this.connections[connection];

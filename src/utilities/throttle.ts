@@ -48,18 +48,23 @@ class Throttle {
   private totalBytes = 0;
   private isProcessing = false;
   private bytesPerSecond: number;
+  private intervalId: ReturnType<typeof setInterval>;
   private queue: Array<{
     chunk: Buffer;
     send: () => void;
   }> = [];
 
   constructor() {
-    setInterval(() => {
+    this.intervalId = setInterval(() => {
       this.totalBytes = 0;
       if (!this.isProcessing) {
         this.process();
       }
     }, 1000);
+  }
+
+  public destroy() {
+    clearInterval(this.intervalId);
   }
 
   public setBytesPerSecond(bytesPerSecond: number) {
