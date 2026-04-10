@@ -317,16 +317,18 @@ export class NetworkService
     return new Promise<string>((resolve, reject) => {
       let returnData = "";
 
-      const safeName = nic.replace(/[^a-zA-Z0-9_.-]/g, "");
-
       const monitor = spawn("bash", [
         "-c",
-        `old="$(</sys/class/net/${safeName}/statistics/${type}_bytes)"; while $(sleep 1);
-  do now=$(</sys/class/net/${safeName}/statistics/${type}_bytes); echo $(($now-$old)) B/s old=$old now=$now; old=$now;
+        `old="$(</sys/class/net/${nic}/statistics/${type}_bytes)"; while $(sleep 1);
+  do now=$(</sys/class/net/${nic}/statistics/${type}_bytes); echo $(($now-$old)) B/s old=$old now=$now; old=$now;
   done`,
       ]);
 
       this.spawnedProcesses.add(monitor);
+
+      process.on(process.env.DEV ? "SIGUSR2" : "SIGTERM", () => {
+        monitor.kill();
+      });
 
       monitor.stdin.on("error", async (error) => {
         this.logger.error("Error running processs", error);

@@ -95,10 +95,6 @@ export class KubernetesService {
 
       const metrics = await this.metricsClient.getNodeMetrics();
 
-      const nodeMetric = metrics?.items?.find(
-        (nodeMetric) => nodeMetric.metadata.name === node.metadata?.name,
-      );
-
       return {
         disks: this.getDiskStats(),
         network: this.networkService.getNetworkStats(),
@@ -107,7 +103,9 @@ export class KubernetesService {
         cpuInfo: this.cpuInfo,
         cpuCapacity: parseInt(capacity.cpu),
         nvidiaGPU: allocatable["nvidia.com/gpu"] ? true : false,
-        metrics: nodeMetric,
+        metrics: metrics.items.find(
+          (nodeMetric) => nodeMetric.metadata.name === node.metadata?.name,
+        ),
       };
     } catch (error) {
       if (error instanceof FetchError && error.code !== "404") {
