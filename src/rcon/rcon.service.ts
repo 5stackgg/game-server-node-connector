@@ -34,20 +34,12 @@ export class RconService {
       password: matchData.id,
     });
 
-    const SEND_TIMEOUT = 5000;
     rcon.send = async (command) => {
-      const sendPromise = rcon
-        .sendRaw(Buffer.from(command, "utf-8"))
-        .then((buf) => buf.toString());
+      const payload = (
+        await rcon.sendRaw(Buffer.from(command, "utf-8"))
+      ).toString();
 
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(
-          () => reject(new Error(`RCON send timeout after ${SEND_TIMEOUT}ms`)),
-          SEND_TIMEOUT,
-        );
-      });
-
-      return Promise.race([sendPromise, timeoutPromise]);
+      return payload;
     };
 
     rcon
@@ -62,9 +54,8 @@ export class RconService {
       });
 
     try {
-      let connectTimer: ReturnType<typeof setTimeout>;
       const timeoutPromise = new Promise<never>((_, reject) => {
-        connectTimer = setTimeout(() => {
+        setTimeout(() => {
           reject(
             new Error(
               `RCON connection timeout after ${this.CONNECTION_TIMEOUT}ms`,
@@ -74,7 +65,6 @@ export class RconService {
       });
 
       await Promise.race([rcon.connect(), timeoutPromise]);
-      clearTimeout(connectTimer!);
     } catch (error) {
       this.logger.warn("RCON connect error:", error);
       try {
@@ -84,13 +74,11 @@ export class RconService {
       } catch (cleanupError) {
         this.logger.warn("Error during RCON cleanup:", cleanupError);
       }
-      return null;
     }
 
-    this.connections[matchId] = rcon;
     this.setupConnectionTimeout(matchId);
 
-    return rcon;
+    return (this.connections[matchId] = rcon);
   }
 
   private setupConnectionTimeout(matchId: string) {
