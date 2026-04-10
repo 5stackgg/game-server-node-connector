@@ -16,7 +16,7 @@ export class RconGateway {
   private static readonly MAX_COMMAND_LENGTH = 512;
 
   private validateCommand(command: string): string | null {
-    if (!command || typeof command !== "string") {
+    if (!command) {
       return "invalid command";
     }
     if (command.length > RconGateway.MAX_COMMAND_LENGTH) {
