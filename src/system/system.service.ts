@@ -151,11 +151,14 @@ export class SystemService {
 
     for (const file of cpuGovernorFiles) {
       try {
-        governors[
-          parseInt(
-            path.basename(path.dirname(path.dirname(file))).replace("cpu", ""),
-          )
-        ] = fs.readFileSync(file, "utf8").trim();
+        const cpuIndex = parseInt(
+          path.basename(path.dirname(path.dirname(file))).replace("cpu", ""),
+        );
+        if (isNaN(cpuIndex)) {
+          this.logger.warn(`Could not parse CPU index from path: ${file}`);
+          continue;
+        }
+        governors[cpuIndex] = fs.readFileSync(file, "utf8").trim();
       } catch (error) {
         this.logger.error(`Error getting CPU governor [${file}]: ${error}`);
       }

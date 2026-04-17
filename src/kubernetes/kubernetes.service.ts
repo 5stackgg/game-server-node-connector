@@ -67,9 +67,17 @@ export class KubernetesService {
   }
 
   public async getNode() {
-    return await this.apiClient.readNode({
-      name: this.nodeName,
-    });
+    try {
+      return await this.apiClient.readNode({
+        name: this.nodeName,
+      });
+    } catch (error) {
+      this.logger.error(
+        `Failed to get node '${this.nodeName}' from K8s API`,
+        error instanceof Error ? error.message : error,
+      );
+      throw error;
+    }
   }
 
   public async getNodeStats(node: V1Node) {
