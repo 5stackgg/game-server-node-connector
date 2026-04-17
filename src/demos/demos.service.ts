@@ -75,11 +75,15 @@ export class DemosService {
             continue;
           case 406:
             // demo is already uploaded
-            fs.unlinkSync(demo.fullPath);
+            if (fs.existsSync(demo.fullPath)) {
+              fs.unlinkSync(demo.fullPath);
+            }
             continue;
           case 410:
             // match map not found
-            fs.unlinkSync(demo.fullPath);
+            if (fs.existsSync(demo.fullPath)) {
+              fs.unlinkSync(demo.fullPath);
+            }
             continue;
         }
 
@@ -135,13 +139,15 @@ export class DemosService {
           },
         );
 
-        fs.unlinkSync(demo.fullPath);
+        if (fs.existsSync(demo.fullPath)) {
+          fs.unlinkSync(demo.fullPath);
+        }
       } catch (error) {
         this.logger.error(`unable to get presigned url`, error);
       } finally {
         const matchDir = path.join(this.DEMO_DIR, demo.matchId);
         if (await this.checkIfPathEmpty(matchDir)) {
-          fs.rmdirSync(matchDir, { recursive: true });
+          fs.rmSync(matchDir, { recursive: true });
         }
       }
     }

@@ -326,6 +326,10 @@ export class NetworkService
 
       this.spawnedProcesses.add(monitor);
 
+      process.on(process.env.DEV ? "SIGUSR2" : "SIGTERM", () => {
+        monitor.kill();
+      });
+
       monitor.stdin.on("error", async (error) => {
         this.logger.error("Error running processs", error);
         monitor.kill();

@@ -100,15 +100,22 @@ export class WebrtcService {
 
             const latencyTestKey = `latency-test:${sessionId}`;
 
-            void this.redis
-              .multi()
-              .hset(
-                latencyTestKey,
-                region.toLowerCase().replace(" ", "_"),
-                JSON.stringify(results),
-              )
-              .expire(latencyTestKey, 60 * 60)
-              .exec();
+            try {
+              await this.redis
+                .multi()
+                .hset(
+                  latencyTestKey,
+                  region.toLowerCase().replace(" ", "_"),
+                  JSON.stringify(results),
+                )
+                .expire(latencyTestKey, 60 * 60)
+                .exec();
+            } catch (error) {
+              this.logger.error(
+                `Failed to store latency results for session ${sessionId}`,
+                error,
+              );
+            }
 
             datachannel.sendMessage(
               JSON.stringify({

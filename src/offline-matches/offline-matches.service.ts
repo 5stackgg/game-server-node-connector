@@ -128,7 +128,10 @@ export class OfflineMatchesService {
     }
   }
 
-  // Helper function to replace placeholders in YAML template
+  private sanitizeYamlValue(value: string): string {
+    return value.replace(/[\r\n]/g, "");
+  }
+
   private replacePlaceholders(
     template: string,
     replacements: Record<string, string>,
@@ -136,7 +139,8 @@ export class OfflineMatchesService {
     let result = template;
     for (const [key, value] of Object.entries(replacements)) {
       const placeholder = `{{${key}}}`;
-      result = result.replace(new RegExp(placeholder, "g"), value);
+      const sanitized = this.sanitizeYamlValue(value);
+      result = result.split(placeholder).join(sanitized);
     }
     return result;
   }
