@@ -72,7 +72,7 @@ export class WebrtcService {
       let startTime: number;
       let latencyArray: number[];
 
-      datachannel.onMessage((data) => {
+      datachannel.onMessage(async (data) => {
         switch (data) {
           case "latency-test":
             latencyArray = [];

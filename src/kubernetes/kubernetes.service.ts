@@ -95,6 +95,15 @@ export class KubernetesService {
 
       const metrics = await this.metricsClient.getNodeMetrics();
 
+      const allocatableGpuCount = parseInt(
+        (allocatable["nvidia.com/gpu"] as string | undefined) ?? "0",
+        10,
+      );
+      const devices = this.getNvidiaGpuDevices();
+      const gpuCount =
+        devices?.length ??
+        (Number.isNaN(allocatableGpuCount) ? 0 : allocatableGpuCount);
+
       return {
         disks: this.getDiskStats(),
         network: this.networkService.getNetworkStats(),
@@ -102,7 +111,10 @@ export class KubernetesService {
         memoryCapacity: capacity.memory,
         cpuInfo: this.cpuInfo,
         cpuCapacity: parseInt(capacity.cpu),
-        nvidiaGPU: allocatable["nvidia.com/gpu"] ? true : false,
+        gpu: {
+          count: gpuCount,
+          devices,
+        },
         metrics: metrics.items.find(
           (nodeMetric) => nodeMetric.metadata.name === node.metadata?.name,
         ),
@@ -112,6 +124,74 @@ export class KubernetesService {
         this.logger.error("Error getting node metrics:", error.message);
       }
     }
+  }
+
+  private getNvidiaGpuDevices(): Array<{
+    index: number;
+    name: string;
+    memory_mb?: number;
+    memory_used_mb?: number;
+    temperature_c?: number;
+    power_w?: number;
+    utilization_percent?: number;
+  }> | null {
+    let raw: string;
+    try {
+      raw = child_process
+        .execSync(
+          "nvidia-smi --query-gpu=index,name,memory.total,memory.used,temperature.gpu,power.draw,utilization.gpu --format=csv,noheader,nounits",
+          { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
+        )
+        .trim();
+    } catch {
+      return null;
+    }
+
+    if (!raw) {
+      return null;
+    }
+
+    const devices: Array<{
+      index: number;
+      name: string;
+      memory_mb?: number;
+      memory_used_mb?: number;
+      temperature_c?: number;
+      power_w?: number;
+      utilization_percent?: number;
+    }> = [];
+
+    for (const line of raw.split("\n")) {
+      const cols = line.split(",").map((c) => c.trim());
+      if (cols.length < 7) continue;
+
+      const index = parseInt(cols[0], 10);
+      if (Number.isNaN(index)) continue;
+
+      const memTotal = parseFloat(cols[2]);
+      const memUsed = parseFloat(cols[3]);
+      const temp = parseFloat(cols[4]);
+      const power = parseFloat(cols[5]);
+      const util = parseFloat(cols[6]);
+
+      devices.push({
+        index,
+        name: cols[1],
+        ...(Number.isFinite(memTotal)
+          ? { memory_mb: Math.round(memTotal) }
+          : {}),
+        ...(Number.isFinite(memUsed)
+          ? { memory_used_mb: Math.round(memUsed) }
+          : {}),
+        ...(Number.isFinite(temp) ? { temperature_c: Math.round(temp) } : {}),
+        ...(Number.isFinite(power) ? { power_w: Math.round(power) } : {}),
+        ...(Number.isFinite(util)
+          ? { utilization_percent: Math.round(util) }
+          : {}),
+      });
+    }
+
+    return devices.length > 0 ? devices : null;
   }
 
   public async getPodStats() {
