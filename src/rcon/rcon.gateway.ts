@@ -52,9 +52,7 @@ export class RconGateway {
       return;
     }
 
-    this.logger.log(
-      `RCON [${data.matchId}]: ${data.command}`,
-    );
+    this.logger.log(`RCON [${data.matchId}]: ${data.command}`);
 
     const rcon = await this.rconService.connect(data.matchId);
 
