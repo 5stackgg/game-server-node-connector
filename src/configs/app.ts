@@ -10,5 +10,6 @@ export default (): {
     basicAuthUser: "5s",
     basicAuthPass: (process.env.OFFLINE_MATCHES_PASSWORD ||
       process.env.NODE_NAME) as string,
+    demoParserUrl: process.env.DEMO_PARSER_URL || "http://demo-parser:8080",
   },
 });

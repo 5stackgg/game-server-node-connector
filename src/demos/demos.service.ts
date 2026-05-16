@@ -10,6 +10,7 @@ import { ApiConfig } from "src/configs/types/ApiConfig";
 import throttle from "src/utilities/throttle";
 import { NetworkService } from "src/system/network.service";
 import { Readable } from "stream";
+import { DemoParserService } from "./demo-parser.service";
 
 @Injectable()
 export class DemosService {
@@ -22,6 +23,7 @@ export class DemosService {
   constructor(
     private readonly configService: ConfigService,
     private readonly networkService: NetworkService,
+    private readonly demoParser: DemoParserService,
     private readonly logger: Logger,
   ) {
     this.apiConfig = this.configService.get<ApiConfig>("api")!;
@@ -54,6 +56,42 @@ export class DemosService {
 
     for (const demo of demos) {
       try {
+        // Parse the .dem locally first and ship the parsed payload to the
+        // API before uploading. On success the API row has
+        // metadata_parsed_at set; the post-upload parse path is then a
+        // no-op (saves a third-party S3 egress on the demo-parser side).
+        // If anything in this pre-upload path fails we skip this demo
+        // for this cycle and let the 60s loop retry — we'd rather pay
+        // local CPU than blind-upload.
+        try {
+          const parsed = await this.demoParser.parseFromDisk(demo.fullPath);
+          const parsedResponse = await fetch(
+            `http://${this.apiConfig.url}:${this.apiConfig.httpPort}/demos/${demo.matchId}/parsed`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "hasura-admin-secret": this.hasuraAdminSecret,
+              },
+              body: JSON.stringify({
+                demo: demo.name,
+                mapId: demo.mapId,
+                parsed,
+              }),
+            },
+          );
+          if (!parsedResponse.ok) {
+            this.logger.error(
+              `unable to post parsed demo`,
+              parsedResponse.status,
+            );
+            continue;
+          }
+        } catch (error) {
+          this.logger.error(`pre-upload parse failed for ${demo.name}`, error);
+          continue;
+        }
+
         const presignedResponse = await fetch(
           `http://${this.apiConfig.url}:${this.apiConfig.httpPort}/demos/${demo.matchId}/pre-signed?&game-server-node=true`,
           {
