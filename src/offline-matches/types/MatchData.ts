@@ -4,6 +4,7 @@ import {
   IsArray,
   IsOptional,
   IsNumber,
+  Matches,
   ValidateNested,
 } from "class-validator";
 import { Type } from "class-transformer";
@@ -12,7 +13,14 @@ import { MatchMap } from "./MatchMap";
 import { MatchOptions } from "./MatchOptions";
 
 export class MatchData {
+  // Constrained to path-safe characters: the id is interpolated into
+  // /pod-manifests/<id>.yaml and .json file paths, so a value containing
+  // "/" or ".." would escape that directory. Match ids are UUIDs, which
+  // this pattern accepts.
   @IsString()
+  @Matches(/^[A-Za-z0-9_-]+$/, {
+    message: "id must contain only letters, numbers, underscores, and hyphens",
+  })
   id: string;
 
   @IsString()

@@ -1,6 +1,6 @@
 import { Redis } from "ioredis";
 import { ConfigService } from "@nestjs/config";
-import { Inject, Injectable, Logger } from "@nestjs/common";
+import { Inject, Injectable, Logger, OnModuleDestroy } from "@nestjs/common";
 import { WebRtcConfig } from "src/configs/types/WebRtcConfig";
 import nodeDataChannel, { PeerConnection } from "node-datachannel";
 import { RedisManagerService } from "src/redis/redis-manager/redis-manager.service";
@@ -8,7 +8,7 @@ import { ClientProxy } from "@nestjs/microservices";
 import { NetworkService } from "src/system/network.service";
 
 @Injectable()
-export class WebrtcService {
+export class WebrtcService implements OnModuleDestroy {
   private redis: Redis;
   private pcMap = new Map<string, PeerConnection>();
 
@@ -25,12 +25,37 @@ export class WebrtcService {
     );
   }
 
+  // Closes the native PeerConnection for a peer and drops it from the map.
+  // Safe to call more than once: the map delete makes the second call a no-op.
+  private closePeerConnection(peerId: string) {
+    const existing = this.pcMap.get(peerId);
+    if (!existing) {
+      return;
+    }
+    this.pcMap.delete(peerId);
+    try {
+      existing.close();
+    } catch (error) {
+      this.logger.warn(`Failed to close peer connection ${peerId}`, error);
+    }
+  }
+
+  public onModuleDestroy() {
+    for (const peerId of [...this.pcMap.keys()]) {
+      this.closePeerConnection(peerId);
+    }
+  }
+
   public createPeerConnection(
     clientId: string,
     peerId: string,
     sessionId: string,
     region: string,
   ) {
+    // A re-offer for the same peer must not orphan the previous native
+    // connection (node-datachannel needs an explicit close to free resources).
+    this.closePeerConnection(peerId);
+
     const peerConnection = new nodeDataChannel.PeerConnection(peerId, {
       iceServers: [
         "stun:stun.l.google.com:19302",
@@ -39,6 +64,15 @@ export class WebrtcService {
         "stun:stun3.l.google.com:19302",
         "stun:stun4.l.google.com:19302",
       ],
+    });
+
+    // The latency test is short-lived; once the connection ends (or fails to
+    // establish) free the native resources and the map entry so they do not
+    // accumulate across every region test a client runs.
+    peerConnection.onStateChange((state) => {
+      if (state === "disconnected" || state === "failed" || state === "closed") {
+        this.closePeerConnection(peerId);
+      }
     });
 
     peerConnection.onLocalDescription((description, type) => {

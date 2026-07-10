@@ -13,6 +13,13 @@ export class OfflineMatchesService {
 
   constructor(private readonly logger: Logger) {}
 
+  // Defense-in-depth for the manifest file paths: even though MatchData.id is
+  // validated to path-safe characters at the controller, force every derived
+  // file to stay inside the manifests directory by stripping any path segments.
+  private manifestPath(fileName: string): string {
+    return path.join(this.manifestsDirectory, path.basename(fileName));
+  }
+
   public async getMatch(id: string): Promise<MatchData | undefined> {
     return this.getMatches().then(function (matches) {
       return matches.find(function (match) {
@@ -86,10 +93,7 @@ export class OfflineMatchesService {
 
       yaml.parse(matchDataYaml);
 
-      fs.writeFileSync(
-        path.join(this.manifestsDirectory, `${jobName}.yaml`),
-        matchDataYaml,
-      );
+      fs.writeFileSync(this.manifestPath(`${jobName}.yaml`), matchDataYaml);
     } catch (error) {
       this.logger.error("Error generating YAML files:", error);
       await this.deleteMatch(matchData.id);
@@ -98,18 +102,15 @@ export class OfflineMatchesService {
   }
 
   public async updateMatchData(matchData: MatchData) {
-    const matchJsonPath = path.join(
-      this.manifestsDirectory,
-      `${matchData.id}.json`,
-    );
+    const matchJsonPath = this.manifestPath(`${matchData.id}.json`);
     fs.writeFileSync(matchJsonPath, JSON.stringify(matchData, null, 2));
   }
 
   public async deleteMatch(id: string) {
     try {
       const jobName = `game-server-${id}`;
-      const yamlPath = path.join(this.manifestsDirectory, `${jobName}.yaml`);
-      const jsonPath = path.join(this.manifestsDirectory, `${id}.json`);
+      const yamlPath = this.manifestPath(`${jobName}.yaml`);
+      const jsonPath = this.manifestPath(`${id}.json`);
 
       if (fs.existsSync(yamlPath)) {
         fs.unlinkSync(yamlPath);

@@ -17,15 +17,24 @@ import {
 
 @Injectable()
 export class FileOperationsService {
-  private readonly allowedBasePaths = ["/servers/", "/custom-plugins"];
+  // Roots the base path is allowed to live under, without trailing separators
+  // so boundaries are enforced explicitly below (see isWithin).
+  private readonly allowedRoots = ["/servers", "/custom-plugins"];
   private readonly logger = new Logger(FileOperationsService.name);
+
+  // True when child is `root` itself or lives strictly beneath it. A plain
+  // startsWith check is not enough: "/custom-plugins".startsWith("/custom-plugins")
+  // would also accept a sibling like "/custom-plugins-evil".
+  private isWithin(child: string, root: string): boolean {
+    return child === root || child.startsWith(root + path.sep);
+  }
 
   private validatePath(basePath: string, userPath: string = ""): string {
     const normalizedBase = path.normalize(basePath);
     const fullPath = path.normalize(path.join(normalizedBase, userPath));
 
-    const isAllowed = this.allowedBasePaths.some((allowed) =>
-      normalizedBase.startsWith(allowed),
+    const isAllowed = this.allowedRoots.some((root) =>
+      this.isWithin(normalizedBase, root),
     );
 
     if (!isAllowed) {
@@ -33,9 +42,9 @@ export class FileOperationsService {
       throw new ForbiddenException("Invalid base path");
     }
 
-    if (!fullPath.startsWith(normalizedBase)) {
+    if (!this.isWithin(fullPath, normalizedBase)) {
       this.logger.warn(
-        `Path traversal detected: ${fullPath} does not start with ${normalizedBase}`,
+        `Path traversal detected: ${fullPath} is outside ${normalizedBase}`,
       );
       throw new ForbiddenException("Path traversal detected");
     }
