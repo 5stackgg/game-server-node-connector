@@ -11,6 +11,9 @@ import { NetworkService } from "src/system/network.service";
 export class WebrtcService implements OnModuleDestroy {
   private redis: Redis;
   private pcMap = new Map<string, PeerConnection>();
+  // Connections already closed, so a deferred "closed" state change from a
+  // connection that was replaced by a re-offer does not close it a second time.
+  private closedConnections = new WeakSet<PeerConnection>();
 
   constructor(
     private readonly configService: ConfigService,
@@ -25,24 +28,36 @@ export class WebrtcService implements OnModuleDestroy {
     );
   }
 
-  // Closes the native PeerConnection for a peer and drops it from the map.
-  // Safe to call more than once: the map delete makes the second call a no-op.
-  private closePeerConnection(peerId: string) {
-    const existing = this.pcMap.get(peerId);
-    if (!existing) {
+  // Close a specific PeerConnection and drop it from the map only if the map
+  // still points at it. The instance matters: a re-offer replaces the map entry
+  // under the same peerId, and node-datachannel delivers the previous
+  // connection's "closed" state change on a LATER tick, so a key-only lookup
+  // would tear down the new connection. Called with no `connection` (dedupe /
+  // shutdown) it targets whatever currently holds the key.
+  private closePeerConnection(peerId: string, connection?: PeerConnection) {
+    const target = connection ?? this.pcMap.get(peerId);
+    if (!target) {
       return;
     }
-    this.pcMap.delete(peerId);
+    // Only evict the map entry if it is still this instance; a newer connection
+    // may already have taken the key.
+    if (this.pcMap.get(peerId) === target) {
+      this.pcMap.delete(peerId);
+    }
+    if (this.closedConnections.has(target)) {
+      return;
+    }
+    this.closedConnections.add(target);
     try {
-      existing.close();
+      target.close();
     } catch (error) {
       this.logger.warn(`Failed to close peer connection ${peerId}`, error);
     }
   }
 
   public onModuleDestroy() {
-    for (const peerId of [...this.pcMap.keys()]) {
-      this.closePeerConnection(peerId);
+    for (const [peerId, connection] of [...this.pcMap.entries()]) {
+      this.closePeerConnection(peerId, connection);
     }
   }
 
@@ -71,7 +86,9 @@ export class WebrtcService implements OnModuleDestroy {
     // accumulate across every region test a client runs.
     peerConnection.onStateChange((state) => {
       if (state === "disconnected" || state === "failed" || state === "closed") {
-        this.closePeerConnection(peerId);
+        // Close THIS connection specifically, not whatever currently holds the
+        // key (a re-offer may already have replaced it).
+        this.closePeerConnection(peerId, peerConnection);
       }
     });
 
