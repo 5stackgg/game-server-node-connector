@@ -5,6 +5,7 @@ import {
   Metrics,
   PodMetric,
   V1Node,
+  V1Pod,
   FetchError,
 } from "@kubernetes/client-node";
 import * as child_process from "node:child_process";
@@ -204,6 +205,12 @@ export class KubernetesService {
       const stats: Array<{
         name: string;
         metrics: PodMetric;
+        cpu?: {
+          limitMilli: number;
+          usageMilli: number;
+          pressure: number;
+          constrained: boolean;
+        };
       }> = [];
 
       const { items: podMetrics } =
@@ -225,6 +232,7 @@ export class KubernetesService {
         stats.push({
           name: pod.metadata?.labels?.app!,
           metrics: podMetric,
+          cpu: this.getPodCpuPressure(pod, podMetric),
         });
       }
 
@@ -232,6 +240,54 @@ export class KubernetesService {
     } catch (error) {
       this.logger.error("Error listing pods:", error);
     }
+  }
+
+  private getPodCpuPressure(pod: V1Pod, podMetric: PodMetric) {
+    const gameContainer = pod.spec?.containers?.find(
+      (container) => container.name === "game-server",
+    );
+
+    const limitMilli = this.parseCpuToMillicores(
+      gameContainer?.resources?.limits?.cpu,
+    );
+
+    if (limitMilli === undefined || limitMilli <= 0) {
+      return undefined;
+    }
+
+    const usageMilli = (podMetric.containers ?? []).reduce((total, container) => {
+      if (gameContainer && container.name !== "game-server") {
+        return total;
+      }
+      return total + (this.parseCpuToMillicores(container.usage?.cpu) ?? 0);
+    }, 0);
+
+    const pressure = usageMilli / limitMilli;
+
+    return {
+      limitMilli,
+      usageMilli,
+      pressure,
+      constrained: pressure >= 0.9,
+    };
+  }
+
+  private parseCpuToMillicores(quantity?: string): number | undefined {
+    if (!quantity) {
+      return undefined;
+    }
+    const value = quantity.trim();
+    if (value.endsWith("n")) {
+      return parseInt(value, 10) / 1e6;
+    }
+    if (value.endsWith("u")) {
+      return parseInt(value, 10) / 1e3;
+    }
+    if (value.endsWith("m")) {
+      return parseInt(value, 10);
+    }
+    const cores = parseFloat(value);
+    return Number.isNaN(cores) ? undefined : cores * 1000;
   }
 
   public async getNodeLowLatency(node: V1Node) {

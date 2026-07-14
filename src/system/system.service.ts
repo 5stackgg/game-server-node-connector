@@ -80,6 +80,18 @@ export class SystemService {
       this.logger.log(`Public IP: ${publicIP}`);
     }
 
+    const cpuGovernorInfo = await this.getCPUFrequncyGovernorInfo();
+
+    const cpuWarnings = this.buildCpuWarnings(
+      podStats,
+      supportsCpuPinning,
+      cpuGovernorInfo,
+    );
+
+    for (const warning of cpuWarnings) {
+      this.logger.warn(warning);
+    }
+
     this.client.emit("ping", {
       labels,
       lanIP,
@@ -92,9 +104,41 @@ export class SystemService {
       csBuild: await this.getCsVersion(),
       csgoBuild: await this.getCsgoBuildId(),
       node: this.nodeName,
-      cpuGovernorInfo: await this.getCPUFrequncyGovernorInfo(),
+      cpuGovernorInfo,
       cpuFrequencyInfo: await this.getCPUFrequncyInfo(),
+      cpuWarnings,
     });
+  }
+
+  private buildCpuWarnings(
+    podStats: Awaited<ReturnType<KubernetesService["getPodStats"]>>,
+    supportsCpuPinning: boolean | undefined,
+    governorInfo: { governor: string },
+  ): string[] {
+    const warnings: string[] = [];
+
+    for (const pod of podStats ?? []) {
+      if (pod.cpu?.constrained) {
+        warnings.push(
+          `Game server "${pod.name}" is CPU-constrained: using ${Math.round(
+            pod.cpu.usageMilli,
+          )}m of its ${pod.cpu.limitMilli}m pinned limit (${Math.round(
+            pod.cpu.pressure * 100,
+          )}%). Increase the server's CPU allocation — a single pinned core is often not enough for CS2.`,
+        );
+      }
+    }
+
+    if (
+      supportsCpuPinning &&
+      !["performance", "N/A", "unknown"].includes(governorInfo.governor)
+    ) {
+      warnings.push(
+        `CPU pinning is enabled but the scaling governor is "${governorInfo.governor}". Pinned game-server cores may downclock — set the governor to "performance" for stable frame times.`,
+      );
+    }
+
+    return warnings;
   }
 
   private async getCsVersion() {
