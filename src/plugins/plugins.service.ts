@@ -28,6 +28,17 @@ export class PluginsService {
   // Sits inside custom-plugins so it travels with the directory it describes.
   private static readonly MANIFEST_DIR = ".5stack-plugins";
 
+  // Junk a release archive picks up from the machine that zipped it. Extracting
+  // it faithfully puts it in the plugin directory, which is mirrored into every
+  // server on the node, so it is dropped on the way in rather than swept later.
+  private static readonly ARCHIVE_JUNK =
+    /(^|\/)(__MACOSX(\/|$)|\.DS_Store$|Thumbs\.db$|\._[^/]*$)/i;
+
+  // Unique per install rather than per process: two installs in one process
+  // would otherwise share a staging directory, and the second would delete the
+  // first's files out from under it.
+  private static run = 0;
+
   private readonly logger = new Logger(PluginsService.name);
 
   private readonly customPluginsRoot: string;
@@ -105,17 +116,38 @@ export class PluginsService {
     // load is decided at link time from the manifest written below, not by
     // keeping the files somewhere the server cannot reach.
     const root = this.customPluginsRoot;
-    const staging = this.within(root, `.5stack-staging-${process.pid}`);
-    const archive = this.within(root, `.5stack-download-${process.pid}.zip`);
 
-    await fs.mkdir(root, { recursive: true });
+    // Staging lives inside the bookkeeping directory, which is the one thing
+    // link_plugins never mirrors into a server. Anywhere else and a half-
+    // extracted archive -- or one left behind by a pod that restarted mid-
+    // install -- gets linked into every server on the node and loaded.
+    // It has to stay on this filesystem regardless: the merge is a rename.
+    const id = `${process.pid}-${(PluginsService.run += 1)}`;
+    const staging = this.within(
+      root,
+      path.join(PluginsService.MANIFEST_DIR, `.staging-${id}`),
+    );
+    const archive = this.within(
+      root,
+      path.join(PluginsService.MANIFEST_DIR, `.download-${id}.zip`),
+    );
+
+    // The bookkeeping directory holds the download as well now, so it has to
+    // exist before anything is written into it.
+    await fs.mkdir(path.dirname(archive), { recursive: true });
+    await this.sweepTemporary(staging, archive);
     await fs.rm(staging, { recursive: true, force: true });
 
     try {
       await this.download(url, archive, sha256);
 
+      // Junk is dropped before the safety check, not after: __MACOSX is not a
+      // directory a server loads, so a release zipped on a Mac was refused
+      // outright with a message about escaping the plugin root.
       this.assertEntriesAreSafe(
-        await this.readArchiveEntryNames(archive),
+        (await this.readArchiveEntryNames(archive)).filter(
+          (name) => !PluginsService.ARCHIVE_JUNK.test(name),
+        ),
         await this.readArchiveUncompressedBytes(archive),
         prefix,
       );
@@ -131,13 +163,19 @@ export class PluginsService {
       // trusting the listing to have shown every name.
       await this.assertContained(staging);
 
-      const files = await this.listFiles(staging);
+      const files = (await this.listFiles(staging)).filter(
+        (file) => !PluginsService.ARCHIVE_JUNK.test(file),
+      );
 
       // Whatever the previous version owned goes before the new files land, so
       // a file dropped between releases does not linger and get loaded.
       await this.removeOwnedFiles(slug);
       await this.mergeInto(staging, root, files);
-      await this.writeManifest(slug, { version, runtime: this.runtimeOf(files), files });
+      await this.writeManifest(slug, {
+        version,
+        runtime: this.runtimeOf(files),
+        files,
+      });
       await this.writeIndex();
 
       this.logger.log(
@@ -145,11 +183,54 @@ export class PluginsService {
       );
 
       return { slug, version, files };
-    } catch (error) {
-      await fs.rm(staging, { recursive: true, force: true });
-      throw error;
     } finally {
+      // Success too: the merge renames files out of staging and leaves the
+      // empty tree behind, which is what put .5stack-staging-<pid> in the
+      // plugin directory of every node that ever installed anything.
+      await fs.rm(staging, { recursive: true, force: true });
       await fs.rm(archive, { force: true });
+    }
+  }
+
+  // Anything a previous install left behind, including the directories the old
+  // layout wrote to the top of custom-plugins, so a node that already has them
+  // clears them on its next install rather than needing a hand.
+  private async sweepTemporary(
+    keepStaging: string,
+    keepArchive: string,
+  ): Promise<void> {
+    const places = [
+      { dir: this.customPluginsRoot, match: /^\.5stack-(staging|download)-/ },
+      {
+        dir: path.join(this.customPluginsRoot, PluginsService.MANIFEST_DIR),
+        match: /^\.(staging|download)-/,
+      },
+    ];
+
+    for (const place of places) {
+      // Not this.readdir, which lists directories only: the archive is a file.
+      let names: Array<string>;
+
+      try {
+        names = await fs.readdir(place.dir);
+      } catch {
+        continue;
+      }
+
+      for (const name of names) {
+        const target = path.join(place.dir, name);
+
+        if (
+          !place.match.test(name) ||
+          target === keepStaging ||
+          target === keepArchive
+        ) {
+          continue;
+        }
+
+        await fs.rm(target, { recursive: true, force: true });
+        this.logger.log(`swept a leftover install directory: ${name}`);
+      }
     }
   }
 
@@ -278,7 +359,11 @@ export class PluginsService {
     );
 
     await fs.mkdir(path.dirname(target), { recursive: true });
-    await fs.writeFile(target, lines.join("\n") + (lines.length ? "\n" : ""), "utf8");
+    await fs.writeFile(
+      target,
+      lines.join("\n") + (lines.length ? "\n" : ""),
+      "utf8",
+    );
   }
 
   private async removeOwnedFiles(slug: string): Promise<void> {
@@ -512,12 +597,20 @@ export class PluginsService {
         continue;
       }
 
-      if (path.isAbsolute(name) || name.startsWith("/") || /^[A-Za-z]:/.test(name)) {
-        throw new ForbiddenException(`archive entry is an absolute path: ${name}`);
+      if (
+        path.isAbsolute(name) ||
+        name.startsWith("/") ||
+        /^[A-Za-z]:/.test(name)
+      ) {
+        throw new ForbiddenException(
+          `archive entry is an absolute path: ${name}`,
+        );
       }
 
       if (name.split("/").includes("..")) {
-        throw new ForbiddenException(`archive entry escapes the plugin root: ${name}`);
+        throw new ForbiddenException(
+          `archive entry escapes the plugin root: ${name}`,
+        );
       }
 
       if (prefix.length > 0) {
@@ -741,7 +834,9 @@ export class PluginsService {
     const normalized = path.normalize(value).replace(/^\/+|\/+$/g, "");
 
     if (normalized.split("/").includes("..") || path.isAbsolute(value)) {
-      throw new ForbiddenException(`installPath escapes the plugin root: ${value}`);
+      throw new ForbiddenException(
+        `installPath escapes the plugin root: ${value}`,
+      );
     }
 
     return normalized;

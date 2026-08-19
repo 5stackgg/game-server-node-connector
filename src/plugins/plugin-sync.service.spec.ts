@@ -138,7 +138,10 @@ describe("PluginSyncService.sync", () => {
         })[key],
     };
     global.fetch = fetchImpl;
-    return { service: new PluginSyncService(config as any, plugins as any), plugins };
+    return {
+      service: new PluginSyncService(config as any, plugins as any),
+      plugins,
+    };
   };
 
   const originalFetch = global.fetch;
@@ -168,12 +171,97 @@ describe("PluginSyncService.sync", () => {
   });
 
   it("removes nothing when the API answers with an error", async () => {
-    const { service, plugins } = build((async () =>
-      new Response("nope", { status: 503 })) as typeof fetch);
+    const { service, plugins } = build(
+      (async () => new Response("nope", { status: 503 })) as typeof fetch,
+    );
 
     await service.sync();
 
     expect(plugins.remove).not.toHaveBeenCalled();
     expect(plugins.install).not.toHaveBeenCalled();
+  });
+});
+
+// The panel nudges every node the moment a plugin is requested, so a second
+// install landing while the first is still downloading used to be dropped and
+// left Pending until the five minute timer came round.
+describe("PluginSyncService.sync", () => {
+  const build = (desiredBySync: Array<Array<Record<string, unknown>>>) => {
+    // A real node reports what it has, so the second pass skips what the first
+    // one installed rather than doing it twice.
+    const onDisk: Array<Record<string, unknown>> = [];
+
+    const plugins = {
+      inventory: jest.fn(async () => [...onDisk]),
+      install: jest.fn(async (options: Record<string, unknown>) => {
+        onDisk.push({ ...options, source: "managed" });
+        return { slug: options.slug, version: options.version, files: [] };
+      }),
+      remove: jest.fn(async () => undefined),
+    };
+
+    const config = {
+      get: (key: string) =>
+        ({
+          api: { url: "api", httpPort: 3000 },
+          node: { nodeName: "node-1" },
+          hasura: { adminSecret: "secret" },
+        })[key],
+    };
+
+    const service = new PluginSyncService(config as any, plugins as any);
+    let call = 0;
+
+    (service as any).fetchDesired = jest.fn(async () => {
+      const list = desiredBySync[Math.min(call, desiredBySync.length - 1)];
+      call += 1;
+      return list;
+    });
+    (service as any).report = jest.fn(async () => undefined);
+
+    return { service, plugins };
+  };
+
+  const desired = (slug: string) => ({
+    slug,
+    version: "1.0.0",
+    url: `https://example.test/${slug}.zip`,
+    sha256: "b".repeat(64),
+  });
+
+  it("answers a nudge that arrives while a pass is already running", async () => {
+    const { service, plugins } = build([
+      [desired("retakes")],
+      [desired("retakes"), desired("csroll")],
+    ]);
+
+    let release: () => void;
+    const downloading = new Promise<void>((resolve) => (release = resolve));
+
+    const converged = plugins.install.getMockImplementation()!;
+
+    plugins.install.mockImplementationOnce(async (options: never) => {
+      // The second request lands mid-download, exactly as the panel sends it.
+      void service.sync();
+      await downloading;
+      return await converged(options);
+    });
+
+    const first = service.sync();
+    await Promise.resolve();
+    release!();
+    await first;
+
+    expect(plugins.install.mock.calls.map(([options]) => options.slug)).toEqual(
+      ["retakes", "csroll"],
+    );
+  });
+
+  it("runs once when nothing else asked", async () => {
+    const { service } = build([[]]);
+
+    await service.sync();
+
+    expect((service as any).fetchDesired).toHaveBeenCalledTimes(1);
   });
 });
