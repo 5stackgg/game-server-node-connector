@@ -45,6 +45,13 @@ export class PluginsService {
     this.storeRoot = paths?.storeRoot ?? "/plugin-store";
     this.customPluginsRoot = paths?.customPluginsRoot ?? "/custom-plugins";
     this.serversRoot = paths?.serversRoot ?? "/servers";
+
+    // In-container paths. storeRoot is a hostPath mount of
+    // /opt/5stack/plugin-store; logging it makes a missing mount obvious
+    // instead of looking like a silent no-op install.
+    this.logger.log(
+      `plugin store ${this.storeRoot}, hand-managed ${this.customPluginsRoot}, servers ${this.serversRoot}`,
+    );
   }
 
   private readonly runtimes = ["swiftlys2", "counterstrikesharp"];
@@ -121,7 +128,13 @@ export class PluginsService {
       await fs.rename(staging, destination);
 
       const files = await this.listFiles(destination);
-      this.logger.log(`installed ${slug}@${version} (${files.length} files)`);
+
+      // The absolute path, because the managed store is deliberately not
+      // /custom-plugins and "installed" without a location sends people looking
+      // in the hand-managed directory, which is always empty of managed plugins.
+      this.logger.log(
+        `installed ${slug}@${version} -> ${destination} (${files.length} files)`,
+      );
 
       return { slug, version, files };
     } catch (error) {

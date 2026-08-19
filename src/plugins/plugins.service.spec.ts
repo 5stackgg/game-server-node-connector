@@ -1,3 +1,21 @@
+// The download guard resolves the hostname before dialling it, so without this
+// every test that installs from a fixture URL waits out a 30 second ENOTFOUND
+// on a reserved .test domain and fails on jest's 5 second timeout. An IP
+// literal is returned unchanged so the private-address checks below still
+// exercise the real rejection logic.
+jest.mock("dns/promises", () => ({
+  lookup: jest.fn(async (hostname: string) => {
+    const isIpLiteral = /^[0-9.]+$|:/.test(hostname);
+
+    return [
+      {
+        address: isIpLiteral ? hostname : "93.184.216.34",
+        family: hostname.includes(":") ? 6 : 4,
+      },
+    ];
+  }),
+}));
+
 import { BadRequestException, ForbiddenException } from "@nestjs/common";
 import { PluginsService } from "./plugins.service";
 import * as fs from "fs/promises";
