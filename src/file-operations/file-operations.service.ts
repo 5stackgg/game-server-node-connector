@@ -4,7 +4,9 @@ import {
   NotFoundException,
   BadRequestException,
   Logger,
+  Optional,
 } from "@nestjs/common";
+import { PluginSyncService } from "src/plugins/plugin-sync.service";
 import * as fs from "fs/promises";
 import { constants } from "fs";
 import * as path from "path";
@@ -17,6 +19,13 @@ import {
 
 @Injectable()
 export class FileOperationsService {
+  // Optional so the service can still be constructed bare in a test. A required
+  // constructor parameter here would break every direct `new` of it.
+  constructor(
+    @Optional()
+    private readonly pluginSync?: PluginSyncService,
+  ) {}
+
   // Roots the base path is allowed to live under, without trailing separators
   // so boundaries are enforced explicitly below (see isWithin).
   private readonly allowedRoots = ["/servers", "/custom-plugins"];
@@ -165,6 +174,17 @@ export class FileOperationsService {
     }
 
     this.logger.log(`Deleted: ${fullPath}`);
+
+    // The panel's picture of what is on this node comes from the plugin
+    // inventory, which is otherwise only rescanned on the node's own five
+    // minute poll -- so deleting a plugin's files read as "nothing happened"
+    // until that came round. File operations cannot reach the managed store,
+    // only /servers and /custom-plugins, so this rescans and reports the
+    // hand-managed set rather than undoing the delete.
+    if (fullPath.includes(`${path.sep}addons${path.sep}`) ||
+        fullPath.endsWith(`${path.sep}addons`)) {
+      void this.pluginSync?.sync();
+    }
   }
 
   private async deleteDirectoryRecursive(dirPath: string): Promise<void> {
