@@ -262,6 +262,7 @@ export class PluginSyncService
             version: plugin.version,
             runtime: plugin.runtime,
             source: plugin.source,
+            path: plugin.directory,
           })),
         }),
       },
