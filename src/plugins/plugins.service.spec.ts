@@ -111,7 +111,9 @@ describe("PluginsService", () => {
     return createHash("sha256").update(body).digest("hex");
   };
 
-  const install = (over: Partial<Parameters<PluginsService["install"]>[0]> = {}) =>
+  const install = (
+    over: Partial<Parameters<PluginsService["install"]>[0]> = {},
+  ) =>
     service.install({
       slug: "inventory-simulator",
       version: "3.1.0",
@@ -122,7 +124,8 @@ describe("PluginsService", () => {
 
   it("installs an archive laid out relative to game/csgo", async () => {
     const body = await makeZip({
-      "addons/swiftlys2/plugins/InventorySimulator/InventorySimulator.dll": "DLL",
+      "addons/swiftlys2/plugins/InventorySimulator/InventorySimulator.dll":
+        "DLL",
       "addons/swiftlys2/plugins/InventorySimulator/resources/en.jsonc": "{}",
     });
     const sha256 = serve(body);
@@ -141,6 +144,73 @@ describe("PluginsService", () => {
         "utf8",
       ),
     ).resolves.toEqual("DLL");
+  });
+
+  // The staging tree used to sit at the top of custom-plugins and was only
+  // cleaned up when an install failed, so every node that installed anything
+  // ended up with .5stack-staging-<pid> mirrored into all of its servers.
+  it("leaves nothing behind in the plugin directory", async () => {
+    const body = await makeZip({ "addons/swiftlys2/plugins/X/X.dll": "DLL" });
+    const sha256 = serve(body);
+
+    await install({ sha256 });
+
+    const entries = await fs.readdir(customPluginsRoot);
+
+    expect(
+      entries.filter((name) => name.startsWith(".5stack-staging")),
+    ).toEqual([]);
+    expect(
+      entries.filter((name) => name.startsWith(".5stack-download")),
+    ).toEqual([]);
+    expect(
+      await fs.readdir(path.join(customPluginsRoot, ".5stack-plugins")),
+    ).toEqual(["index", "inventory-simulator.json"]);
+  });
+
+  it("clears what an earlier layout left at the top of the directory", async () => {
+    await fs.mkdir(path.join(customPluginsRoot, ".5stack-staging-1/addons"), {
+      recursive: true,
+    });
+    await fs.writeFile(
+      path.join(customPluginsRoot, ".5stack-download-1.zip"),
+      "junk",
+    );
+
+    const body = await makeZip({ "addons/swiftlys2/plugins/X/X.dll": "DLL" });
+    const sha256 = serve(body);
+
+    await install({ sha256 });
+
+    expect(
+      (await fs.readdir(customPluginsRoot)).filter((name) =>
+        name.startsWith(".5stack-staging"),
+      ),
+    ).toEqual([]);
+  });
+
+  // A release zipped on a Mac carries these, and extracting them faithfully
+  // mirrors them into every server on the node.
+  it("drops the junk a macOS-built archive carries", async () => {
+    const body = await makeZip({
+      "addons/swiftlys2/plugins/X/X.dll": "DLL",
+      "addons/swiftlys2/plugins/X/.DS_Store": "junk",
+      "addons/swiftlys2/plugins/X/._X.dll": "junk",
+      "__MACOSX/addons/swiftlys2/plugins/X/._X.dll": "junk",
+    });
+    const sha256 = serve(body);
+
+    const result = await install({ sha256 });
+
+    expect(result.files).toEqual(["addons/swiftlys2/plugins/X/X.dll"]);
+    await expect(
+      fs.stat(path.join(customPluginsRoot, "__MACOSX")),
+    ).rejects.toThrow();
+    await expect(
+      fs.stat(
+        path.join(customPluginsRoot, "addons/swiftlys2/plugins/X/.DS_Store"),
+      ),
+    ).rejects.toThrow();
   });
 
   it("refuses an artifact whose digest is not the one the registry pinned", async () => {
@@ -196,7 +266,9 @@ describe("PluginsService", () => {
       installPath: "addons/swiftlys2/plugins/Retakes",
     });
 
-    expect(result.files).toContain("addons/swiftlys2/plugins/Retakes/Retakes.dll");
+    expect(result.files).toContain(
+      "addons/swiftlys2/plugins/Retakes/Retakes.dll",
+    );
   });
 
   it("refuses an install path that escapes the plugin root", async () => {
@@ -236,7 +308,9 @@ describe("PluginsService", () => {
     });
     await install({ sha256: serve(good) });
 
-    const bad = await makeZip({ "addons/swiftlys2/plugins/X/X.dll": "REPLACED" });
+    const bad = await makeZip({
+      "addons/swiftlys2/plugins/X/X.dll": "REPLACED",
+    });
     serve(bad);
     await expect(install({ sha256: "b".repeat(64) })).rejects.toThrow();
 
@@ -251,7 +325,8 @@ describe("PluginsService", () => {
   describe("inventory", () => {
     it("reports managed installs with their runtime", async () => {
       const body = await makeZip({
-        "addons/swiftlys2/plugins/InventorySimulator/InventorySimulator.dll": "DLL",
+        "addons/swiftlys2/plugins/InventorySimulator/InventorySimulator.dll":
+          "DLL",
       });
       await install({ sha256: serve(body) });
 
@@ -310,7 +385,10 @@ describe("PluginsService", () => {
     const dllPath = "addons/swiftlys2/plugins/X/X.dll";
 
     it("replaces the previous version rather than keeping both", async () => {
-      const first = await makeZip({ [dllPath]: "OLD", "addons/swiftlys2/plugins/X/gone.txt": "OLD" });
+      const first = await makeZip({
+        [dllPath]: "OLD",
+        "addons/swiftlys2/plugins/X/gone.txt": "OLD",
+      });
       await install({ sha256: serve(first), version: "3.0.0" });
 
       const second = await makeZip({ [dllPath]: "NEW" });
@@ -323,11 +401,16 @@ describe("PluginsService", () => {
       // A file the old release shipped and the new one does not must not
       // linger: it would still be linked into a server and loaded.
       await expect(
-        fs.readFile(path.join(customPluginsRoot, "addons/swiftlys2/plugins/X/gone.txt"), "utf8"),
+        fs.readFile(
+          path.join(customPluginsRoot, "addons/swiftlys2/plugins/X/gone.txt"),
+          "utf8",
+        ),
       ).rejects.toThrow();
 
       const inventory = await service.inventory();
-      expect(inventory.filter((p) => p.slug === "inventory-simulator")).toHaveLength(1);
+      expect(
+        inventory.filter((p) => p.slug === "inventory-simulator"),
+      ).toHaveLength(1);
       expect(inventory[0].version).toEqual("3.1.0");
     });
 
@@ -347,7 +430,10 @@ describe("PluginsService", () => {
     it("leaves a hand-placed file in a directory it shares", async () => {
       await install({ sha256: serve(await makeZip({ [dllPath]: "DLL" })) });
 
-      const theirs = path.join(customPluginsRoot, "addons/swiftlys2/plugins/X/theirs.cfg");
+      const theirs = path.join(
+        customPluginsRoot,
+        "addons/swiftlys2/plugins/X/theirs.cfg",
+      );
       await fs.writeFile(theirs, "mine");
 
       await service.remove("inventory-simulator");
@@ -356,7 +442,10 @@ describe("PluginsService", () => {
     });
 
     it("ignores a removal aimed at a version that is not installed", async () => {
-      await install({ sha256: serve(await makeZip({ [dllPath]: "DLL" })), version: "3.1.0" });
+      await install({
+        sha256: serve(await makeZip({ [dllPath]: "DLL" })),
+        version: "3.1.0",
+      });
 
       await service.remove("inventory-simulator", "3.0.0");
 
@@ -366,7 +455,9 @@ describe("PluginsService", () => {
     });
 
     it("refuses a slug that would escape the plugin directory", async () => {
-      await expect(service.remove("../../etc")).rejects.toThrow(ForbiddenException);
+      await expect(service.remove("../../etc")).rejects.toThrow(
+        ForbiddenException,
+      );
     });
   });
 });
@@ -408,9 +499,9 @@ describe("PluginsService download targets", () => {
   });
 
   it("refuses cloud metadata by address", async () => {
-    await expect(install("https://169.254.169.254/latest/meta-data")).rejects.toThrow(
-      /non-public address/,
-    );
+    await expect(
+      install("https://169.254.169.254/latest/meta-data"),
+    ).rejects.toThrow(/non-public address/);
   });
 
   it("refuses RFC1918 by address", async () => {

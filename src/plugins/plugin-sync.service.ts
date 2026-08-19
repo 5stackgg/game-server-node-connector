@@ -30,6 +30,7 @@ export class PluginSyncService
   private readonly hasuraAdminSecret: string;
 
   private syncing = false;
+  private syncAgain = false;
   private timer: ReturnType<typeof setInterval> | null = null;
 
   // Long enough that a node is not hammering the API, short enough that an Auto
@@ -66,26 +67,36 @@ export class PluginSyncService
     }
   }
 
+  // Installing a second plugin while the first is still downloading nudges every
+  // node again, and dropping that nudge left the second one Pending until the
+  // five minute timer came round. The pass in flight is already reading a stale
+  // desired list, so the ask is remembered and answered once it finishes.
   public async sync(): Promise<void> {
     if (this.syncing) {
+      this.syncAgain = true;
       return;
     }
 
     this.syncing = true;
 
     try {
-      const desired = await this.fetchDesired();
+      do {
+        this.syncAgain = false;
 
-      if (desired === null) {
-        return;
-      }
+        const desired = await this.fetchDesired();
 
-      await this.converge(desired);
-      await this.report();
+        if (desired === null) {
+          return;
+        }
+
+        await this.converge(desired);
+        await this.report();
+      } while (this.syncAgain);
     } catch (error) {
       this.logger.warn(`plugin sync failed: ${error.message ?? error}`);
     } finally {
       this.syncing = false;
+      this.syncAgain = false;
     }
   }
 
@@ -123,7 +134,8 @@ export class PluginSyncService
     for (const plugin of desired) {
       const present = managed.find(
         (candidate) =>
-          candidate.slug === plugin.slug && candidate.version === plugin.version,
+          candidate.slug === plugin.slug &&
+          candidate.version === plugin.version,
       );
 
       if (present) {
@@ -187,10 +199,7 @@ export class PluginSyncService
     }
   }
 
-  private async removeOtherVersions(
-    slug: string,
-    keep: string,
-  ): Promise<void> {
+  private async removeOtherVersions(slug: string, keep: string): Promise<void> {
     const installed = await this.plugins.inventory();
 
     for (const plugin of installed) {
