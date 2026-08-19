@@ -23,6 +23,7 @@ RUN apt-get update \
     bash \
     containerd \
     dmidecode \
+    unzip \
     util-linux \
   && rm -rf /var/lib/apt/lists/*
 
