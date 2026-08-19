@@ -66,9 +66,6 @@ spec:
           mountPath: /opt/demos
         - name: "custom-plugins"
           mountPath: /opt/custom-plugins
-        - name: "plugin-store"
-          mountPath: /opt/plugin-store
-          readOnly: true
   volumes:
     - name: "steamcmd"
       hostPath:
@@ -82,7 +79,3 @@ spec:
     - name: "custom-plugins"
       hostPath:
         path: /opt/5stack/custom-plugins
-    - name: "plugin-store"
-      hostPath:
-        path: /opt/5stack/plugin-store
-        type: DirectoryOrCreate

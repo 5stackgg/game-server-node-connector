@@ -16,7 +16,7 @@ describe("PluginSyncService.converge", () => {
     version,
     runtime: "swiftlys2",
     source: "managed",
-    path: `/plugin-store/${slug}/${version}`,
+    path: `/custom-plugins/addons/swiftlys2/plugins/${slug}`,
     files: [`addons/swiftlys2/plugins/${slug}/${slug}.dll`],
     digest: "a".repeat(64),
   });
@@ -156,7 +156,7 @@ describe("PluginSyncService.sync", () => {
         version: "1.2.0",
         runtime: "swiftlys2",
         source: "managed",
-        path: "/plugin-store/retakes/1.2.0",
+        path: "/custom-plugins/addons/swiftlys2/plugins/retakes",
         files: [],
         digest: null,
       },
