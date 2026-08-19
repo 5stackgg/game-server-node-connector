@@ -28,18 +28,16 @@ import { createHash } from "crypto";
 describe("PluginsService", () => {
   let workdir: string;
   let service: PluginsService;
-  let storeRoot: string;
   let customPluginsRoot: string;
   let serversRoot: string;
   const originalFetch = global.fetch;
 
   beforeEach(async () => {
     workdir = await fs.mkdtemp(path.join(os.tmpdir(), "plugins-spec-"));
-    storeRoot = path.join(workdir, "plugin-store");
     customPluginsRoot = path.join(workdir, "custom-plugins");
     serversRoot = path.join(workdir, "servers");
-    await fs.mkdir(storeRoot, { recursive: true });
-    service = new PluginsService({ storeRoot, customPluginsRoot, serversRoot });
+    await fs.mkdir(customPluginsRoot, { recursive: true });
+    service = new PluginsService({ customPluginsRoot, serversRoot });
   });
 
   afterEach(async () => {
@@ -137,8 +135,8 @@ describe("PluginsService", () => {
     await expect(
       fs.readFile(
         path.join(
-          storeRoot,
-          "inventory-simulator/3.1.0/addons/swiftlys2/plugins/InventorySimulator/InventorySimulator.dll",
+          customPluginsRoot,
+          "addons/swiftlys2/plugins/InventorySimulator/InventorySimulator.dll",
         ),
         "utf8",
       ),
@@ -153,7 +151,7 @@ describe("PluginsService", () => {
       ForbiddenException,
     );
     await expect(
-      fs.readdir(path.join(storeRoot, "inventory-simulator", "3.1.0")),
+      fs.readdir(path.join(customPluginsRoot, "addons")),
     ).rejects.toThrow();
   });
 
@@ -244,7 +242,7 @@ describe("PluginsService", () => {
 
     await expect(
       fs.readFile(
-        path.join(storeRoot, "inventory-simulator/3.1.0/addons/swiftlys2/plugins/X/X.dll"),
+        path.join(customPluginsRoot, "addons/swiftlys2/plugins/X/X.dll"),
         "utf8",
       ),
     ).resolves.toEqual("ORIGINAL");
@@ -309,30 +307,65 @@ describe("PluginsService", () => {
   });
 
   describe("remove", () => {
-    it("drops a single version and leaves the others", async () => {
-      const body = await makeZip({ "addons/swiftlys2/plugins/X/X.dll": "DLL" });
-      const sha256 = serve(body);
-      await install({ sha256, version: "3.1.0" });
-      await install({ sha256, version: "3.0.0" });
+    const dllPath = "addons/swiftlys2/plugins/X/X.dll";
 
-      await service.remove("inventory-simulator", "3.0.0");
+    it("replaces the previous version rather than keeping both", async () => {
+      const first = await makeZip({ [dllPath]: "OLD", "addons/swiftlys2/plugins/X/gone.txt": "OLD" });
+      await install({ sha256: serve(first), version: "3.0.0" });
 
-      const versions = await fs.readdir(path.join(storeRoot, "inventory-simulator"));
-      expect(versions).toEqual(["3.1.0"]);
+      const second = await makeZip({ [dllPath]: "NEW" });
+      await install({ sha256: serve(second), version: "3.1.0" });
+
+      await expect(
+        fs.readFile(path.join(customPluginsRoot, dllPath), "utf8"),
+      ).resolves.toEqual("NEW");
+
+      // A file the old release shipped and the new one does not must not
+      // linger: it would still be linked into a server and loaded.
+      await expect(
+        fs.readFile(path.join(customPluginsRoot, "addons/swiftlys2/plugins/X/gone.txt"), "utf8"),
+      ).rejects.toThrow();
+
+      const inventory = await service.inventory();
+      expect(inventory.filter((p) => p.slug === "inventory-simulator")).toHaveLength(1);
+      expect(inventory[0].version).toEqual("3.1.0");
     });
 
-    it("drops every version when no version is given", async () => {
-      const body = await makeZip({ "addons/swiftlys2/plugins/X/X.dll": "DLL" });
-      await install({ sha256: serve(body) });
+    it("removes the files it owns and forgets the plugin", async () => {
+      await install({ sha256: serve(await makeZip({ [dllPath]: "DLL" })) });
 
       await service.remove("inventory-simulator");
 
       await expect(
-        fs.readdir(path.join(storeRoot, "inventory-simulator")),
+        fs.readFile(path.join(customPluginsRoot, dllPath), "utf8"),
       ).rejects.toThrow();
+      await expect(service.inventory()).resolves.toEqual([]);
     });
 
-    it("refuses a slug that would escape the store", async () => {
+    // Managed files sit among hand-placed ones now, so removal must not take a
+    // directory something else is still using with it.
+    it("leaves a hand-placed file in a directory it shares", async () => {
+      await install({ sha256: serve(await makeZip({ [dllPath]: "DLL" })) });
+
+      const theirs = path.join(customPluginsRoot, "addons/swiftlys2/plugins/X/theirs.cfg");
+      await fs.writeFile(theirs, "mine");
+
+      await service.remove("inventory-simulator");
+
+      await expect(fs.readFile(theirs, "utf8")).resolves.toEqual("mine");
+    });
+
+    it("ignores a removal aimed at a version that is not installed", async () => {
+      await install({ sha256: serve(await makeZip({ [dllPath]: "DLL" })), version: "3.1.0" });
+
+      await service.remove("inventory-simulator", "3.0.0");
+
+      await expect(
+        fs.readFile(path.join(customPluginsRoot, dllPath), "utf8"),
+      ).resolves.toEqual("DLL");
+    });
+
+    it("refuses a slug that would escape the plugin directory", async () => {
       await expect(service.remove("../../etc")).rejects.toThrow(ForbiddenException);
     });
   });
@@ -347,7 +380,7 @@ describe("PluginsService download targets", () => {
   const originalFetch = global.fetch;
 
   beforeEach(() => {
-    service = new PluginsService({ storeRoot: "/tmp/does-not-matter" });
+    service = new PluginsService({ customPluginsRoot: "/tmp/does-not-matter" });
   });
 
   afterEach(() => {

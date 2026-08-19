@@ -17,7 +17,6 @@ import { InstalledPlugin } from "./dto/plugin.dto";
 export const PLUGIN_PATHS = "PLUGIN_PATHS";
 
 export type PluginPaths = {
-  storeRoot: string;
   customPluginsRoot: string;
   serversRoot: string;
 };
@@ -26,9 +25,11 @@ const run = promisify(execFile);
 
 @Injectable()
 export class PluginsService {
+  // Sits inside custom-plugins so it travels with the directory it describes.
+  private static readonly MANIFEST_DIR = ".5stack-plugins";
+
   private readonly logger = new Logger(PluginsService.name);
 
-  private readonly storeRoot: string;
   private readonly customPluginsRoot: string;
   private readonly serversRoot: string;
 
@@ -42,15 +43,15 @@ export class PluginsService {
     @Inject(PLUGIN_PATHS)
     paths?: Partial<PluginPaths>,
   ) {
-    this.storeRoot = paths?.storeRoot ?? "/plugin-store";
     this.customPluginsRoot = paths?.customPluginsRoot ?? "/custom-plugins";
     this.serversRoot = paths?.serversRoot ?? "/servers";
 
-    // In-container paths. storeRoot is a hostPath mount of
-    // /opt/5stack/plugin-store; logging it makes a missing mount obvious
-    // instead of looking like a silent no-op install.
+    // In-container paths. customPluginsRoot is a hostPath mount of
+    // /opt/5stack/custom-plugins and is where managed installs land, so
+    // logging it makes a missing mount obvious instead of looking like a
+    // silent no-op install.
     this.logger.log(
-      `plugin store ${this.storeRoot}, hand-managed ${this.customPluginsRoot}, servers ${this.serversRoot}`,
+      `plugins ${this.customPluginsRoot}, servers ${this.serversRoot}`,
     );
   }
 
@@ -97,11 +98,17 @@ export class PluginsService {
     const prefix =
       layout === "plugin" ? this.relative(options.installPath ?? "") : "";
 
-    const destination = this.pluginPath(slug, version);
-    const staging = `${destination}.staging-${process.pid}`;
-    const archive = `${destination}.download-${process.pid}.zip`;
+    // Installs land in the hand-managed directory rather than a store of their
+    // own: that is where operators are already told to manage plugins, it is
+    // where a plugin's own config files get written, and it needs no extra
+    // mount or path for a game server to see it. What a mode does and does not
+    // load is decided at link time from the manifest written below, not by
+    // keeping the files somewhere the server cannot reach.
+    const root = this.customPluginsRoot;
+    const staging = this.within(root, `.5stack-staging-${process.pid}`);
+    const archive = this.within(root, `.5stack-download-${process.pid}.zip`);
 
-    await fs.mkdir(path.dirname(destination), { recursive: true });
+    await fs.mkdir(root, { recursive: true });
     await fs.rm(staging, { recursive: true, force: true });
 
     try {
@@ -124,16 +131,17 @@ export class PluginsService {
       // trusting the listing to have shown every name.
       await this.assertContained(staging);
 
-      await fs.rm(destination, { recursive: true, force: true });
-      await fs.rename(staging, destination);
+      const files = await this.listFiles(staging);
 
-      const files = await this.listFiles(destination);
+      // Whatever the previous version owned goes before the new files land, so
+      // a file dropped between releases does not linger and get loaded.
+      await this.removeOwnedFiles(slug);
+      await this.mergeInto(staging, root, files);
+      await this.writeManifest(slug, { version, runtime: this.runtimeOf(files), files });
+      await this.writeIndex();
 
-      // The absolute path, because the managed store is deliberately not
-      // /custom-plugins and "installed" without a location sends people looking
-      // in the hand-managed directory, which is always empty of managed plugins.
       this.logger.log(
-        `installed ${slug}@${version} -> ${destination} (${files.length} files)`,
+        `installed ${slug}@${version} -> ${root} (${files.length} files)`,
       );
 
       return { slug, version, files };
@@ -146,16 +154,182 @@ export class PluginsService {
   }
 
   public async remove(slug: string, version?: string): Promise<void> {
-    const target = version
-      ? this.pluginPath(slug, version)
-      : this.slugPath(slug);
+    const manifest = await this.readManifest(slug);
 
-    await fs.rm(target, { recursive: true, force: true });
+    if (version && manifest && manifest.version !== version) {
+      return;
+    }
+
+    await this.removeOwnedFiles(slug);
+    await fs.rm(this.manifestPath(slug), { force: true });
+    await this.writeIndex();
+
     this.logger.log(`removed ${slug}${version ? `@${version}` : ""}`);
   }
 
+  // Managed files live among hand-placed ones, so ownership has to be recorded
+  // rather than inferred from where they sit. The manifest is also what lets a
+  // game server decide which of these a mode actually asked for.
+  private manifestPath(slug: string): string {
+    return this.within(
+      this.customPluginsRoot,
+      path.join(PluginsService.MANIFEST_DIR, `${this.safeSlug(slug)}.json`),
+    );
+  }
+
+  private safeSlug(slug: string): string {
+    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) {
+      throw new ForbiddenException(`unsafe plugin slug: ${slug}`);
+    }
+
+    return slug;
+  }
+
+  private async writeManifest(
+    slug: string,
+    manifest: { version: string; runtime: string | null; files: Array<string> },
+  ): Promise<void> {
+    const target = this.manifestPath(slug);
+
+    await fs.mkdir(path.dirname(target), { recursive: true });
+    await fs.writeFile(
+      target,
+      JSON.stringify({ slug, ...manifest }, null, 2),
+      "utf8",
+    );
+  }
+
+  private async readManifest(slug: string): Promise<{
+    slug: string;
+    version: string;
+    runtime: string | null;
+    files: Array<string>;
+  } | null> {
+    try {
+      return JSON.parse(await fs.readFile(this.manifestPath(slug), "utf8"));
+    } catch {
+      return null;
+    }
+  }
+
+  private async readManifests(): Promise<
+    Array<{
+      slug: string;
+      version: string;
+      runtime: string | null;
+      files: Array<string>;
+    }>
+  > {
+    const dir = this.within(
+      this.customPluginsRoot,
+      PluginsService.MANIFEST_DIR,
+    );
+
+    let names: Array<string>;
+
+    try {
+      names = await fs.readdir(dir);
+    } catch {
+      return [];
+    }
+
+    const manifests = [];
+
+    for (const name of names) {
+      if (!name.endsWith(".json")) {
+        continue;
+      }
+
+      const manifest = await this.readManifest(name.replace(/\.json$/, ""));
+
+      if (manifest) {
+        manifests.push(manifest);
+      }
+    }
+
+    return manifests;
+  }
+
+  // setup.sh has to know which files belong to which plugin before it links
+  // them, and it has no JSON parser. One tab-separated line per file is the
+  // whole contract: slug, version, path.
+  private async writeIndex(): Promise<void> {
+    const lines: Array<string> = [];
+
+    for (const manifest of await this.readManifests()) {
+      for (const file of manifest.files) {
+        // A tab or newline in a path would split the record and silently
+        // mis-attribute the file, so such a plugin is left out of the index and
+        // therefore never gated -- it links like a hand-placed file.
+        if (/[\t\n\r]/.test(file)) {
+          this.logger.warn(
+            `${manifest.slug} has an unindexable path, it will always load: ${file}`,
+          );
+          continue;
+        }
+
+        lines.push(`${manifest.slug}\t${manifest.version}\t${file}`);
+      }
+    }
+
+    const target = this.within(
+      this.customPluginsRoot,
+      path.join(PluginsService.MANIFEST_DIR, "index"),
+    );
+
+    await fs.mkdir(path.dirname(target), { recursive: true });
+    await fs.writeFile(target, lines.join("\n") + (lines.length ? "\n" : ""), "utf8");
+  }
+
+  private async removeOwnedFiles(slug: string): Promise<void> {
+    const manifest = await this.readManifest(slug);
+
+    if (!manifest) {
+      return;
+    }
+
+    for (const file of manifest.files) {
+      await fs.rm(this.within(this.customPluginsRoot, file), { force: true });
+    }
+
+    // Directories the plugin brought with it, deepest first so a nested tree
+    // collapses. rmdir only succeeds on an empty one, which is the point: a
+    // directory another plugin or a hand-placed file still uses survives.
+    const directories = new Set<string>();
+
+    for (const file of manifest.files) {
+      let dir = path.dirname(file);
+
+      while (dir && dir !== "." && dir !== "/") {
+        directories.add(dir);
+        dir = path.dirname(dir);
+      }
+    }
+
+    for (const dir of [...directories].sort((a, b) => b.length - a.length)) {
+      await fs
+        .rmdir(this.within(this.customPluginsRoot, dir))
+        .catch(() => undefined);
+    }
+  }
+
+  private async mergeInto(
+    staging: string,
+    root: string,
+    files: Array<string>,
+  ): Promise<void> {
+    for (const file of files) {
+      const target = this.within(root, file);
+
+      await fs.mkdir(path.dirname(target), { recursive: true });
+      await fs.rename(path.join(staging, file), target);
+    }
+  }
+
   public async inventory(): Promise<Array<InstalledPlugin>> {
-    return [...(await this.managedInventory()), ...(await this.manualInventory())];
+    const managed = await this.managedInventory();
+
+    return [...managed, ...(await this.manualInventory(managed))];
   }
 
   // Every hop is re-checked, not just the first. Following redirects
@@ -398,38 +572,58 @@ export class PluginsService {
   private async managedInventory(): Promise<Array<InstalledPlugin>> {
     const results: Array<InstalledPlugin> = [];
 
-    for (const slug of await this.readdir(this.storeRoot)) {
-      for (const version of await this.readdir(path.join(this.storeRoot, slug))) {
-        const pluginPath = path.join(this.storeRoot, slug, version);
-        const files = await this.listFiles(pluginPath);
+    for (const manifest of await this.readManifests()) {
+      // Recorded is not the same as present. An operator can delete a managed
+      // plugin's files by hand, and reporting it installed on the strength of
+      // the manifest alone is how the panel ends up lying about a node.
+      const present: Array<string> = [];
 
-        // An empty directory is not an install. Reporting one made the panel
-        // show Installed for a plugin whose files had been deleted, and made
-        // converge skip the repair because it believed it was already there.
-        // install() rm -rf's the destination first, so the leftover directory
-        // does not get in the way of reinstalling over it.
-        if (files.length === 0) {
-          continue;
+      for (const file of manifest.files) {
+        const exists = await fs
+          .stat(this.within(this.customPluginsRoot, file))
+          .then(() => true)
+          .catch(() => false);
+
+        if (exists) {
+          present.push(file);
         }
-
-        results.push({
-          slug,
-          version,
-          runtime: this.runtimeOf(files),
-          source: "managed",
-          path: pluginPath,
-          files,
-          digest: await this.digestOf(pluginPath, files),
-        });
       }
+
+      if (present.length === 0) {
+        continue;
+      }
+
+      results.push({
+        slug: manifest.slug,
+        version: manifest.version,
+        runtime: manifest.runtime ?? this.runtimeOf(present),
+        source: "managed",
+        path: this.customPluginsRoot,
+        files: present,
+        digest: await this.digestOf(this.customPluginsRoot, present),
+      });
     }
 
     return results;
   }
 
-  // Anything an admin placed by hand, so the panel can report what is really on
-  // the node rather than only what it installed itself.
-  private async manualInventory(): Promise<Array<InstalledPlugin>> {
+  private async manualInventory(
+    managed: Array<InstalledPlugin>,
+  ): Promise<Array<InstalledPlugin>> {
+    // Directories any manifest owns a file inside of.
+    const managedPaths = new Set<string>();
+
+    for (const plugin of managed) {
+      for (const file of plugin.files) {
+        let dir = path.dirname(file);
+
+        while (dir && dir !== "." && dir !== "/") {
+          managedPaths.add(dir);
+          dir = path.dirname(dir);
+        }
+      }
+    }
+
     const roots = [this.customPluginsRoot];
 
     for (const serverId of await this.readdir(this.serversRoot)) {
@@ -447,6 +641,14 @@ export class PluginsService {
           const files = await this.listFiles(pluginPath);
 
           if (files.length === 0) {
+            continue;
+          }
+
+          // Managed installs now live in this same tree, so without this every
+          // one of them would also be reported as a hand-placed plugin.
+          const relative = path.relative(this.customPluginsRoot, pluginPath);
+
+          if (managedPaths.has(relative)) {
             continue;
           }
 
@@ -543,14 +745,6 @@ export class PluginsService {
     }
 
     return normalized;
-  }
-
-  private slugPath(slug: string): string {
-    return this.within(this.storeRoot, slug);
-  }
-
-  private pluginPath(slug: string, version: string): string {
-    return this.within(this.storeRoot, path.join(slug, version));
   }
 
   private within(root: string, relative: string): string {
