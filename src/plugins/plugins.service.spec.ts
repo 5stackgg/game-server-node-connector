@@ -337,8 +337,54 @@ describe("PluginsService", () => {
         version: "3.1.0",
         runtime: "swiftlys2",
         source: "managed",
+        directory: "addons/swiftlys2/plugins/InventorySimulator",
       });
       expect(plugin.digest).toMatch(/^[a-f0-9]{64}$/);
+    });
+
+    it("points at the plugin directory even when the release also writes configs", async () => {
+      const body = await makeZip({
+        "addons/swiftlys2/configs/plugins/InventorySimulator/config.jsonc":
+          "{}",
+        "addons/swiftlys2/plugins/InventorySimulator/InventorySimulator.dll":
+          "DLL",
+      });
+      await install({ sha256: serve(body) });
+
+      const [plugin] = await service.inventory();
+
+      expect(plugin.directory).toBe(
+        "addons/swiftlys2/plugins/InventorySimulator",
+      );
+    });
+
+    it("points at the release's own directory when it is placed under an install path", async () => {
+      const body = await makeZip({ "CSRoll/CSRoll.dll": "DLL" });
+
+      await service.install({
+        slug: "csroll",
+        version: "1.0.0",
+        url: "https://example.test/csroll.zip",
+        sha256: serve(body),
+        layout: "plugin",
+        installPath: "addons/swiftlys2/plugins",
+      });
+
+      const [plugin] = await service.inventory();
+
+      expect(plugin.directory).toBe("addons/swiftlys2/plugins/CSRoll");
+    });
+
+    it("falls back to what the files share when nothing sits under plugins/", async () => {
+      const body = await makeZip({
+        "cfg/5stack/a.cfg": "a",
+        "cfg/5stack/b.cfg": "b",
+      });
+      await install({ sha256: serve(body) });
+
+      const [plugin] = await service.inventory();
+
+      expect(plugin.directory).toBe("cfg/5stack");
     });
 
     it("reports plugins an admin dropped in by hand", async () => {
@@ -357,6 +403,7 @@ describe("PluginsService", () => {
           version: null,
           runtime: "counterstrikesharp",
           source: "manual",
+          directory: "addons/counterstrikesharp/plugins/HandRolled",
         }),
       );
     });
@@ -372,7 +419,11 @@ describe("PluginsService", () => {
       const plugins = await service.inventory();
 
       expect(plugins).toContainEqual(
-        expect.objectContaining({ slug: "OnlyHere", source: "manual" }),
+        expect.objectContaining({
+          slug: "OnlyHere",
+          source: "manual",
+          directory: null,
+        }),
       );
     });
 

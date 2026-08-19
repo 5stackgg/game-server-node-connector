@@ -692,6 +692,7 @@ export class PluginsService {
         runtime: manifest.runtime ?? this.runtimeOf(present),
         source: "managed",
         path: this.customPluginsRoot,
+        directory: this.directoryOf(present),
         files: present,
         digest: await this.digestOf(this.customPluginsRoot, present),
       });
@@ -751,6 +752,7 @@ export class PluginsService {
             runtime,
             source: "manual",
             path: pluginPath,
+            directory: root === this.customPluginsRoot ? relative : null,
             files,
             digest: await this.digestOf(pluginPath, files),
           });
@@ -759,6 +761,51 @@ export class PluginsService {
     }
 
     return results;
+  }
+
+  // Where an operator should be sent to look at the plugin. A release may also
+  // drop cfg and config files elsewhere, so the directory under plugins/ wins
+  // when there is one; otherwise the deepest directory everything shares.
+  private directoryOf(files: Array<string>): string | null {
+    for (const runtime of this.runtimes) {
+      const prefix = `addons/${runtime}/plugins/`;
+      const inside = files.find((file) => file.startsWith(prefix));
+
+      if (!inside) {
+        continue;
+      }
+
+      const rest = inside.slice(prefix.length);
+
+      return rest.includes("/")
+        ? `${prefix}${rest.split("/")[0]}`
+        : prefix.slice(0, -1);
+    }
+
+    let common: Array<string> | null = null;
+
+    for (const file of files) {
+      const parts = file.split("/").slice(0, -1);
+
+      if (common === null) {
+        common = parts;
+        continue;
+      }
+
+      let length = 0;
+
+      while (
+        length < common.length &&
+        length < parts.length &&
+        common[length] === parts[length]
+      ) {
+        length += 1;
+      }
+
+      common = common.slice(0, length);
+    }
+
+    return common && common.length > 0 ? common.join("/") : null;
   }
 
   private runtimeOf(files: Array<string>): string | null {

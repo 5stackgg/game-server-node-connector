@@ -17,6 +17,7 @@ describe("PluginSyncService.converge", () => {
     runtime: "swiftlys2",
     source: "managed",
     path: `/custom-plugins/addons/swiftlys2/plugins/${slug}`,
+    directory: `addons/swiftlys2/plugins/${slug}`,
     files: [`addons/swiftlys2/plugins/${slug}/${slug}.dll`],
     digest: "a".repeat(64),
   });
@@ -27,6 +28,7 @@ describe("PluginSyncService.converge", () => {
     runtime: "swiftlys2",
     source: "manual",
     path: `/custom-plugins/addons/swiftlys2/plugins/${slug}`,
+    directory: `addons/swiftlys2/plugins/${slug}`,
     files: [`${slug}.dll`],
     digest: null,
   });
@@ -168,6 +170,41 @@ describe("PluginSyncService.sync", () => {
     await service.sync();
 
     expect(plugins.remove).not.toHaveBeenCalled();
+  });
+
+  it("tells the API where each plugin landed", async () => {
+    const calls: Array<{ url: string; body: string }> = [];
+    const { service, plugins } = build((async (
+      url: string,
+      init?: RequestInit,
+    ) => {
+      calls.push({ url, body: String(init?.body ?? "") });
+
+      return new Response(JSON.stringify({ plugins: [] }), { status: 200 });
+    }) as typeof fetch);
+    plugins.inventory.mockResolvedValue([
+      {
+        slug: "inventory-simulator",
+        version: "3.1.0",
+        runtime: "swiftlys2",
+        source: "manual",
+        path: "/custom-plugins/addons/swiftlys2/plugins/InventorySimulator",
+        directory: "addons/swiftlys2/plugins/InventorySimulator",
+        files: ["addons/swiftlys2/plugins/InventorySimulator/a.dll"],
+        digest: null,
+      },
+    ] as never);
+
+    await service.sync();
+
+    const report = calls.find((call) => call.url.endsWith("/state"));
+
+    expect(JSON.parse(report!.body).plugins).toEqual([
+      expect.objectContaining({
+        slug: "inventory-simulator",
+        path: "addons/swiftlys2/plugins/InventorySimulator",
+      }),
+    ]);
   });
 
   it("removes nothing when the API answers with an error", async () => {
