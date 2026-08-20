@@ -43,7 +43,25 @@ describe("PluginSyncService.converge", () => {
   const converge = (list: Array<ReturnType<typeof desired>>) =>
     (service as any).converge(list);
 
+  // What the node told the API, in the order it said it. Stubbed rather than
+  // left to the real fetch, which would otherwise try to reach an API that is
+  // not there -- progress posts swallow their own errors, so that failure was
+  // invisible rather than absent.
+  let reported: Array<Record<string, any>>;
+
+  const progress = (slug: string, status: string) =>
+    reported.find(
+      (entry) => entry.slug === slug && entry.status === status,
+    );
+
   beforeEach(() => {
+    reported = [];
+
+    global.fetch = jest.fn(async (_url: any, init: any) => {
+      reported.push(JSON.parse(init.body));
+      return { ok: true, json: async () => ({}) } as Response;
+    }) as any;
+
     plugins = {
       inventory: jest.fn(async () => [] as Array<InstalledPlugin>),
       install: jest.fn(async () => ({ slug: "", version: "", files: [] })),
@@ -119,6 +137,45 @@ describe("PluginSyncService.converge", () => {
     await converge([desired("broken", "1.0.0"), desired("fine", "1.0.0")]);
 
     expect(plugins.install).toHaveBeenCalledTimes(2);
+  });
+
+  // An auto-updating plugin changes version with nobody asking it to, so the
+  // node reporting which version it replaced is the only record that it
+  // happened at all.
+  it("names the version it replaced", async () => {
+    plugins.inventory.mockResolvedValue([managed("retakes", "1.1.0")]);
+
+    await converge([desired("retakes", "1.2.0")]);
+
+    expect(progress("retakes", "Installed")).toEqual(
+      expect.objectContaining({ version: "1.2.0", previousVersion: "1.1.0" }),
+    );
+  });
+
+  it("replaces nothing on a first install", async () => {
+    await converge([desired("retakes", "1.2.0")]);
+
+    expect(progress("retakes", "Installed")).toEqual(
+      expect.objectContaining({ version: "1.2.0", previousVersion: null }),
+    );
+  });
+
+  // Which version is still running matters more than which one failed: the
+  // servers are on it right now.
+  it("says which version is still in place when an update fails", async () => {
+    plugins.inventory.mockResolvedValue([managed("retakes", "1.1.0")]);
+    plugins.install.mockRejectedValue(new Error("digest mismatch"));
+
+    await converge([desired("retakes", "1.2.0")]);
+
+    expect(progress("retakes", "Failed")).toEqual(
+      expect.objectContaining({
+        version: "1.2.0",
+        previousVersion: "1.1.0",
+        error: "digest mismatch",
+      }),
+    );
+    expect(progress("retakes", "Installed")).toBeUndefined();
   });
 });
 

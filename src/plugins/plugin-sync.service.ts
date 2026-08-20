@@ -142,6 +142,14 @@ export class PluginSyncService
         continue;
       }
 
+      // The version being replaced, read from the snapshot taken before this
+      // pass started installing anything. Nobody else can answer it: the API
+      // overwrites the version it has recorded the moment this reports
+      // Installing, and the old directory is gone by the time the pass ends.
+      const previous = managed.find(
+        (candidate) => candidate.slug === plugin.slug,
+      );
+
       // Told before it happens, not inferred after: a download can take
       // minutes, and until this lands the panel cannot tell a node that is
       // working from one that has not started.
@@ -149,6 +157,7 @@ export class PluginSyncService
         slug: plugin.slug,
         status: "Installing",
         version: plugin.version,
+        previousVersion: previous?.version ?? null,
       });
 
       try {
@@ -164,6 +173,17 @@ export class PluginSyncService
         // Version bumps leave the old directory behind; the mode names an exact
         // version, so keeping it would quietly pin servers to the old build.
         await this.removeOtherVersions(plugin.slug, plugin.version);
+
+        // The inventory report at the end of the pass says what is on disk now,
+        // which is not enough to tell an upgrade from a first install. This
+        // says which version was replaced, and it is the only point where that
+        // is still known.
+        await this.reportProgress({
+          slug: plugin.slug,
+          status: "Installed",
+          version: plugin.version,
+          previousVersion: previous?.version ?? null,
+        });
       } catch (error) {
         this.logger.warn(
           `could not install ${plugin.slug}@${plugin.version}: ${error.message ?? error}`,
@@ -173,6 +193,7 @@ export class PluginSyncService
           slug: plugin.slug,
           status: "Failed",
           version: plugin.version,
+          previousVersion: previous?.version ?? null,
           error: error.message ?? String(error),
         });
       }
@@ -218,8 +239,9 @@ export class PluginSyncService
 
   private async reportProgress(progress: {
     slug: string;
-    status: "Installing" | "Failed" | "Removing";
+    status: "Installing" | "Installed" | "Failed" | "Removing";
     version?: string | null;
+    previousVersion?: string | null;
     error?: string | null;
   }): Promise<void> {
     try {
