@@ -50,9 +50,7 @@ describe("PluginSyncService.converge", () => {
   let reported: Array<Record<string, any>>;
 
   const progress = (slug: string, status: string) =>
-    reported.find(
-      (entry) => entry.slug === slug && entry.status === status,
-    );
+    reported.find((entry) => entry.slug === slug && entry.status === status);
 
   beforeEach(() => {
     reported = [];
@@ -158,6 +156,19 @@ describe("PluginSyncService.converge", () => {
     expect(progress("retakes", "Installed")).toEqual(
       expect.objectContaining({ version: "1.2.0", previousVersion: null }),
     );
+  });
+
+  // The install landed; only the sweep of the directory it replaced did not.
+  // Reporting that as a failed install raises an alert about a plugin that is
+  // sitting there working.
+  it("still reports an install that only failed to clean up", async () => {
+    plugins.inventory.mockResolvedValue([managed("retakes", "1.1.0")]);
+    plugins.remove.mockRejectedValue(new Error("EBUSY"));
+
+    await converge([desired("retakes", "1.2.0")]);
+
+    expect(progress("retakes", "Installed")).toBeDefined();
+    expect(progress("retakes", "Failed")).toBeUndefined();
   });
 
   // Which version is still running matters more than which one failed: the
