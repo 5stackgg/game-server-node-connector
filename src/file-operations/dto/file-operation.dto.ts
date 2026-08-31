@@ -49,8 +49,9 @@ export class MoveItemDto {
   @IsNotEmpty()
   sourcePath: string;
 
+  // An empty destPath is the base path itself: the panel sends "" when an item
+  // is dragged back out to the root, so this one cannot be @IsNotEmpty.
   @IsString()
-  @IsNotEmpty()
   destPath: string;
 }
 
