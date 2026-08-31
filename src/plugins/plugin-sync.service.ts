@@ -31,6 +31,8 @@ export class PluginSyncService
 
   private syncing = false;
   private syncAgain = false;
+  private refreshing = false;
+  private refreshAgain = false;
   private timer: ReturnType<typeof setInterval> | null = null;
 
   // Long enough that a node is not hammering the API, short enough that an Auto
@@ -97,6 +99,35 @@ export class PluginSyncService
     } finally {
       this.syncing = false;
       this.syncAgain = false;
+    }
+  }
+
+  // A file operation only changed what is already on disk, so the panel needs
+  // the inventory re-reported and nothing else: sync() would also fetch the
+  // desired list -- silently doing nothing at all when that fetch fails -- and
+  // converge, which can install or remove a managed plugin at a moment that has
+  // nothing to do with what the operator just did. Coalesced the way sync() is,
+  // so dropping a folder of files is one rescan rather than one per file.
+  public async refreshInventory(): Promise<void> {
+    if (this.refreshing) {
+      this.refreshAgain = true;
+      return;
+    }
+
+    this.refreshing = true;
+
+    try {
+      do {
+        this.refreshAgain = false;
+        await this.report();
+      } while (this.refreshAgain);
+    } catch (error) {
+      this.logger.warn(
+        `could not refresh plugin inventory: ${error.message ?? error}`,
+      );
+    } finally {
+      this.refreshing = false;
+      this.refreshAgain = false;
     }
   }
 

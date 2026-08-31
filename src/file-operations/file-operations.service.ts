@@ -153,6 +153,8 @@ export class FileOperationsService {
 
     await fs.mkdir(fullPath, { recursive: true });
     this.logger.log(`Directory created: ${fullPath}`);
+
+    this.syncPluginsIfAddons(fullPath);
   }
 
   async deleteFileOrDirectory(
@@ -181,7 +183,9 @@ export class FileOperationsService {
   // The panel's picture of what is on this node comes from the plugin
   // inventory, which is otherwise only rescanned on the node's own five minute
   // poll -- so adding, moving or deleting a plugin's files read as "nothing
-  // happened" until that came round. File operations cannot reach the managed
+  // happened" until that came round. Every write path calls this, not just the
+  // destructive ones: dropping a .dll in through the file manager is the usual
+  // way a plugin is hand-installed. File operations cannot reach the managed
   // store, only /servers and /custom-plugins, so this rescans and reports the
   // hand-managed set rather than undoing the operation.
   private syncPluginsIfAddons(...fullPaths: string[]): void {
@@ -192,7 +196,7 @@ export class FileOperationsService {
     );
 
     if (touchesAddons) {
-      void this.pluginSync?.sync();
+      void this.pluginSync?.refreshInventory();
     }
   }
 
@@ -228,23 +232,38 @@ export class FileOperationsService {
     // If destination is an existing directory, move the source into it
     if (await this.pathExists(fullDestPath)) {
       const destStats = await fs.stat(fullDestPath);
-      if (destStats.isDirectory()) {
-        const sourceName = path.basename(fullSourcePath);
-        fullDestPath = path.join(fullDestPath, sourceName);
-        // Re-validate the new destination path
-        this.validatePath(basePath, path.join(destPath, sourceName));
-      } else {
+      if (!destStats.isDirectory()) {
         throw new BadRequestException(
           `Destination already exists: ${destPath}`,
         );
       }
+
+      const sourceName = path.basename(fullSourcePath);
+      // The composed path is the one that gets written, so it -- not a
+      // throwaway copy of it -- has to be what comes back out of validatePath.
+      fullDestPath = this.validatePath(
+        basePath,
+        path.join(destPath, sourceName),
+      );
+
+      // Dropped back into the directory it already lives in. The panel stops
+      // this before it asks, but the action is callable on its own.
+      if (fullDestPath === fullSourcePath) {
+        return;
+      }
+
+      if (await this.pathExists(fullDestPath)) {
+        throw new BadRequestException(
+          `Destination already exists: ${path.join(destPath, sourceName)}`,
+        );
+      }
     }
 
-    // Check if the final destination path already exists
-    if (await this.pathExists(fullDestPath)) {
-      const sourceName = path.basename(fullSourcePath);
+    // fs.rename answers this with a bare EINVAL, which reaches the operator as
+    // a 500 and an errno.
+    if (this.isWithin(fullDestPath, fullSourcePath)) {
       throw new BadRequestException(
-        `Destination already exists: ${path.join(destPath, sourceName)}`,
+        `Cannot move ${sourcePath} into itself or one of its subdirectories`,
       );
     }
 
@@ -277,6 +296,8 @@ export class FileOperationsService {
 
     await fs.rename(fullOldPath, fullNewPath);
     this.logger.log(`Renamed: ${fullOldPath} -> ${fullNewPath}`);
+
+    this.syncPluginsIfAddons(fullOldPath, fullNewPath);
   }
 
   async uploadFile(
@@ -293,6 +314,8 @@ export class FileOperationsService {
 
     await fs.writeFile(fullPath, buffer);
     this.logger.log(`File uploaded: ${fullPath}`);
+
+    this.syncPluginsIfAddons(fullPath);
   }
 
   async writeTextFile(
@@ -309,6 +332,8 @@ export class FileOperationsService {
 
     await fs.writeFile(fullPath, content, "utf8");
     this.logger.log(`File written: ${fullPath}`);
+
+    this.syncPluginsIfAddons(fullPath);
   }
 
   async getFileStats(

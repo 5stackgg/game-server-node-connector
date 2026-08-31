@@ -370,3 +370,92 @@ describe("PluginSyncService.sync", () => {
     expect((service as any).fetchDesired).toHaveBeenCalledTimes(1);
   });
 });
+
+// A file operation only changed what is on disk. Reusing sync() here meant the
+// rescan did nothing at all whenever the desired-plugin fetch failed, and could
+// install or remove a managed plugin at a moment the operator never asked for.
+describe("PluginSyncService.refreshInventory", () => {
+  const build = (fetchImpl: typeof fetch) => {
+    const plugins = {
+      inventory: jest.fn(async () => []),
+      install: jest.fn(),
+      remove: jest.fn(),
+    };
+    const config = {
+      get: (key: string) =>
+        ({
+          api: { url: "api", httpPort: 3000 },
+          node: { nodeName: "node-1" },
+          hasura: { adminSecret: "secret" },
+        })[key],
+    };
+    global.fetch = fetchImpl;
+    return {
+      service: new PluginSyncService(config as any, plugins as any),
+      plugins,
+    };
+  };
+
+  const originalFetch = global.fetch;
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
+  it("reports the inventory without asking what the node should have", async () => {
+    const calls: Array<string> = [];
+    const { service } = build((async (url: string) => {
+      calls.push(url);
+      return new Response("{}", { status: 200 });
+    }) as typeof fetch);
+
+    await service.refreshInventory();
+
+    expect(calls).toEqual([expect.stringContaining("/state")]);
+  });
+
+  it("installs and removes nothing", async () => {
+    const { service, plugins } = build(
+      (async () => new Response("{}", { status: 200 })) as typeof fetch,
+    );
+
+    await service.refreshInventory();
+
+    expect(plugins.install).not.toHaveBeenCalled();
+    expect(plugins.remove).not.toHaveBeenCalled();
+  });
+
+  // Called with void from the file operation, so a throw here would be an
+  // unhandled rejection rather than a logged warning.
+  it("swallows an unreachable API", async () => {
+    const { service } = build((async () => {
+      throw new Error("ECONNREFUSED");
+    }) as typeof fetch);
+
+    await expect(service.refreshInventory()).resolves.toBeUndefined();
+  });
+
+  it("collapses a burst of file operations into one extra pass", async () => {
+    let inFlight: () => void;
+    const reporting = new Promise<void>((resolve) => (inFlight = resolve));
+    let reports = 0;
+
+    const { service } = build((async () => {
+      reports++;
+      if (reports === 1) {
+        await reporting;
+      }
+      return new Response("{}", { status: 200 });
+    }) as typeof fetch);
+
+    const first = service.refreshInventory();
+    await Promise.resolve();
+
+    await service.refreshInventory();
+    await service.refreshInventory();
+
+    inFlight!();
+    await first;
+
+    expect(reports).toBe(2);
+  });
+});
