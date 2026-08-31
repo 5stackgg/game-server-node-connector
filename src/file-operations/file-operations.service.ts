@@ -175,14 +175,23 @@ export class FileOperationsService {
 
     this.logger.log(`Deleted: ${fullPath}`);
 
-    // The panel's picture of what is on this node comes from the plugin
-    // inventory, which is otherwise only rescanned on the node's own five
-    // minute poll -- so deleting a plugin's files read as "nothing happened"
-    // until that came round. File operations cannot reach the managed store,
-    // only /servers and /custom-plugins, so this rescans and reports the
-    // hand-managed set rather than undoing the delete.
-    if (fullPath.includes(`${path.sep}addons${path.sep}`) ||
-        fullPath.endsWith(`${path.sep}addons`)) {
+    this.syncPluginsIfAddons(fullPath);
+  }
+
+  // The panel's picture of what is on this node comes from the plugin
+  // inventory, which is otherwise only rescanned on the node's own five minute
+  // poll -- so adding, moving or deleting a plugin's files read as "nothing
+  // happened" until that came round. File operations cannot reach the managed
+  // store, only /servers and /custom-plugins, so this rescans and reports the
+  // hand-managed set rather than undoing the operation.
+  private syncPluginsIfAddons(...fullPaths: string[]): void {
+    const touchesAddons = fullPaths.some(
+      (fullPath) =>
+        fullPath.includes(`${path.sep}addons${path.sep}`) ||
+        fullPath.endsWith(`${path.sep}addons`),
+    );
+
+    if (touchesAddons) {
       void this.pluginSync?.sync();
     }
   }
@@ -246,6 +255,8 @@ export class FileOperationsService {
 
     await fs.rename(fullSourcePath, fullDestPath);
     this.logger.log(`Moved: ${fullSourcePath} -> ${fullDestPath}`);
+
+    this.syncPluginsIfAddons(fullSourcePath, fullDestPath);
   }
 
   async renameFileOrDirectory(
