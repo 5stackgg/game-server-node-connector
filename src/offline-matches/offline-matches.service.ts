@@ -83,6 +83,7 @@ export class OfflineMatchesService {
           RCON_PASSWORD: matchData.id,
           MATCH_PASSWORD: matchData.password,
           MAP_NAME: mapName,
+          GAME_MODE: OfflineMatchesService.gameMode(matchData.options?.type),
           SERVER_ID: matchData.id,
           SERVER_API_PASSWORD: "api-password",
           STEAM_RELAY: "false",
@@ -126,6 +127,18 @@ export class OfflineMatchesService {
     } catch (error) {
       this.logger.error(`Error deleting match ${id}:`, error);
       throw error;
+    }
+  }
+
+  private static gameMode(type?: string): string {
+    switch (type) {
+      case "Rush":
+        return "6";
+      case "Wingman":
+      case "Duel":
+        return "2";
+      default:
+        return "1";
     }
   }
 
