@@ -114,8 +114,9 @@
             <option value="Competitive" selected>
             Competitive (5 players per team)
             </option>
-            <option value="Duel">Duel (2 players per team)</option>
-            <option value="Wingman">Wingman (1 player per team)</option>
+            <option value="Wingman">Wingman (2 players per team)</option>
+            <option value="Duel">Duel (1 player per team)</option>
+            <option value="Rush">Rush (3 players per team)</option>
         </select>
         </div>
         <div>
@@ -484,10 +485,13 @@
         requiredPlayers = 5;
         break;
       case "Duel":
-        requiredPlayers = 2;
+        requiredPlayers = 1;
         break;
       case "Wingman":
-        requiredPlayers = 1;
+        requiredPlayers = 2;
+        break;
+      case "Rush":
+        requiredPlayers = 3;
         break;
       default:
         requiredPlayers = 5;
@@ -780,10 +784,13 @@
         maxPlayers = 5 + numberOfSubstitutes;
         break;
       case "Duel":
-        maxPlayers = 2 + numberOfSubstitutes;
+        maxPlayers = 1 + numberOfSubstitutes;
         break;
       case "Wingman":
-        maxPlayers = 1 + numberOfSubstitutes;
+        maxPlayers = 2 + numberOfSubstitutes;
+        break;
+      case "Rush":
+        maxPlayers = 3 + numberOfSubstitutes;
         break;
       default:
         maxPlayers = 5 + numberOfSubstitutes;
@@ -804,10 +811,13 @@
         minPlayers = 5;
         break;
       case "Duel":
-        minPlayers = 2;
+        minPlayers = 1;
         break;
       case "Wingman":
-        minPlayers = 1;
+        minPlayers = 2;
+        break;
+      case "Rush":
+        minPlayers = 3;
         break;
       default:
         minPlayers = 5;
@@ -894,12 +904,16 @@
         maxPlayers = 5 + numberOfSubstitutes;
         break;
       case "Duel":
+        minPlayers = 1;
+        maxPlayers = 1 + numberOfSubstitutes;
+        break;
+      case "Wingman":
         minPlayers = 2;
         maxPlayers = 2 + numberOfSubstitutes;
         break;
-      case "Wingman":
-        minPlayers = 1;
-        maxPlayers = 1 + numberOfSubstitutes;
+      case "Rush":
+        minPlayers = 3;
+        maxPlayers = 3 + numberOfSubstitutes;
         break;
       default:
         minPlayers = 5;
@@ -953,12 +967,16 @@
         maxPlayers = 5 + numberOfSubstitutes;
         break;
       case "Duel":
+        minPlayers = 1;
+        maxPlayers = 1 + numberOfSubstitutes;
+        break;
+      case "Wingman":
         minPlayers = 2;
         maxPlayers = 2 + numberOfSubstitutes;
         break;
-      case "Wingman":
-        minPlayers = 1;
-        maxPlayers = 1 + numberOfSubstitutes;
+      case "Rush":
+        minPlayers = 3;
+        maxPlayers = 3 + numberOfSubstitutes;
         break;
       default:
         minPlayers = 5;
