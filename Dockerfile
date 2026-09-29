@@ -1,4 +1,4 @@
-FROM node:22 AS deps
+FROM node:24 AS deps
 
 WORKDIR /build
 COPY package*.json ./
@@ -6,7 +6,7 @@ COPY yarn.lock ./
 
 RUN yarn install
 
-FROM node:22 AS builder
+FROM node:24 AS builder
 
 WORKDIR /build
 COPY --from=deps /build/node_modules ./node_modules
@@ -14,7 +14,7 @@ COPY . .
 
 RUN yarn build
 
-FROM node:22
+FROM node:24
 
 WORKDIR /opt/5stack
 
