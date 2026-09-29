@@ -1,5 +1,5 @@
 namespaces: [5stack]
-image: node:22
+image: node:24
 workload: [game-server-node-connector, game-server-node-connector-nvidia]
 kind: DaemonSet
 workdir: /opt/5stack
