@@ -25,7 +25,7 @@ describe("rescanning plugins after a file operation", () => {
         throw new Error(`ENOENT: ${target}`);
       }
     });
-    (fs.stat as jest.Mock).mockImplementation(async (target: string) => {
+    const stat = async (target: string) => {
       if (!exists(target)) {
         throw new Error(`ENOENT: ${target}`);
       }
@@ -34,11 +34,13 @@ describe("rescanning plugins after a file operation", () => {
         isDirectory: () => directories.has(target),
         isFile: () => files.has(target),
       };
-    });
+    };
+    (fs.stat as jest.Mock).mockImplementation(stat);
+    (fs.lstat as jest.Mock).mockImplementation(stat);
     (fs.readdir as jest.Mock).mockResolvedValue([]);
     (fs.rename as jest.Mock).mockResolvedValue(undefined);
     (fs.mkdir as jest.Mock).mockResolvedValue(undefined);
-    (fs.rmdir as jest.Mock).mockResolvedValue(undefined);
+    (fs.rm as jest.Mock).mockResolvedValue(undefined);
     (fs.unlink as jest.Mock).mockResolvedValue(undefined);
     (fs.writeFile as jest.Mock).mockResolvedValue(undefined);
   });
