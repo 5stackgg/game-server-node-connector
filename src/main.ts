@@ -57,6 +57,10 @@ async function bootstrap() {
     }).engine,
   );
 
+  // Node's 5 minute default cuts off a server directory being streamed in from
+  // another node.
+  app.getHttpServer().requestTimeout = 2 * 60 * 60 * 1000;
+
   const httpPort = configService.get("app.httpPort") as number;
   await app.listen(httpPort);
 }

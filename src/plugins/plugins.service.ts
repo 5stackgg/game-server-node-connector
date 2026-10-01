@@ -721,6 +721,11 @@ export class PluginsService {
     const roots = [this.customPluginsRoot];
 
     for (const serverId of await this.readdir(this.serversRoot)) {
+      // Staging and trash directories from a server being moved between nodes.
+      if (serverId.startsWith(".")) {
+        continue;
+      }
+
       roots.push(path.join(this.serversRoot, serverId));
     }
 

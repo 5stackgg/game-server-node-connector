@@ -163,14 +163,14 @@ export class FileOperationsService {
   ): Promise<void> {
     const fullPath = this.validatePath(basePath, itemPath);
 
-    if (!(await this.pathExists(fullPath))) {
+    const stats = await fs.lstat(fullPath).catch(() => null);
+
+    if (!stats) {
       throw new NotFoundException(`Path not found: ${itemPath}`);
     }
 
-    const stats = await fs.stat(fullPath);
-
     if (stats.isDirectory()) {
-      await this.deleteDirectoryRecursive(fullPath);
+      await fs.rm(fullPath, { recursive: true });
     } else {
       await fs.unlink(fullPath);
     }
@@ -198,23 +198,6 @@ export class FileOperationsService {
     if (touchesAddons) {
       void this.pluginSync?.refreshInventory();
     }
-  }
-
-  private async deleteDirectoryRecursive(dirPath: string): Promise<void> {
-    const entries = await fs.readdir(dirPath);
-
-    for (const entry of entries) {
-      const entryPath = path.join(dirPath, entry);
-      const stats = await fs.stat(entryPath);
-
-      if (stats.isDirectory()) {
-        await this.deleteDirectoryRecursive(entryPath);
-      } else {
-        await fs.unlink(entryPath);
-      }
-    }
-
-    await fs.rmdir(dirPath);
   }
 
   async moveFileOrDirectory(

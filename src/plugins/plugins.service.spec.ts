@@ -427,6 +427,23 @@ describe("PluginsService", () => {
       );
     });
 
+    it("ignores a server directory still being moved in from another node", async () => {
+      for (const scratch of [
+        ".staging-server-uuid-1-1",
+        ".trash-server-uuid-1-2",
+      ]) {
+        const manual = path.join(
+          serversRoot,
+          scratch,
+          "addons/swiftlys2/plugins/InFlight",
+        );
+        await fs.mkdir(manual, { recursive: true });
+        await fs.writeFile(path.join(manual, "InFlight.dll"), "DLL");
+      }
+
+      await expect(service.inventory()).resolves.toEqual([]);
+    });
+
     it("is empty rather than throwing when nothing is installed", async () => {
       await expect(service.inventory()).resolves.toEqual([]);
     });
