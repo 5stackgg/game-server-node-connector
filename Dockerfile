@@ -27,6 +27,12 @@ RUN apt-get update \
     util-linux \
   && rm -rf /var/lib/apt/lists/*
 
+# crictl for resources/image-prune.sh; Debian does not package it.
+ARG CRICTL_VERSION=v1.37.0
+ARG TARGETARCH
+RUN curl -fsSL "https://github.com/kubernetes-sigs/cri-tools/releases/download/${CRICTL_VERSION}/crictl-${CRICTL_VERSION}-linux-${TARGETARCH}.tar.gz" \
+  | tar -xz -C /usr/local/bin crictl
+
 COPY --from=builder /build/node_modules ./node_modules
 COPY --from=builder /build/dist ./dist 
 COPY --from=builder /build/public ./public  

@@ -13,6 +13,7 @@ import { RedisManagerService } from "./redis/redis-manager/redis-manager.service
 import { RconModule } from "./rcon/rcon.module";
 import { FileOperationsModule } from "./file-operations/file-operations.module";
 import { PluginsModule } from "./plugins/plugins.module";
+import { ImagePruneModule } from "./image-prune/image-prune.module";
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { PluginsModule } from "./plugins/plugins.module";
     RconModule,
     FileOperationsModule,
     PluginsModule,
+    ImagePruneModule,
   ],
   controllers: [],
   providers: [loggerFactory()],
