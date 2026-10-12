@@ -62,6 +62,7 @@ describe("KubernetesService", () => {
       await expect(
         service.getNodeLowLatency(nodeWithKernel("7.0.0-38-generic")),
       ).resolves.toBe(true);
+      expect(fs.readFileSync).toHaveBeenCalledWith("/proc/cmdline", "utf8");
     });
 
     it("counts preempt=full as the last argument on the line", async () => {
