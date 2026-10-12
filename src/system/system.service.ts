@@ -88,6 +88,12 @@ export class SystemService {
       cpuGovernorInfo,
     );
 
+    const legacyKernelWarning =
+      this.kubernetesService.getLegacyKernelWarning(node);
+    if (legacyKernelWarning) {
+      cpuWarnings.push(legacyKernelWarning);
+    }
+
     for (const warning of cpuWarnings) {
       this.logger.warn(warning);
     }

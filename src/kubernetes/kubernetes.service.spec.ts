@@ -129,4 +129,36 @@ describe("KubernetesService", () => {
       ).resolves.toBe(true);
     });
   });
+
+  describe("getLegacyKernelWarning", () => {
+    function nodeWithKernel(kernelVersion: string) {
+      return {
+        status: { nodeInfo: { kernelVersion } },
+      } as unknown as V1Node;
+    }
+
+    it("points a node on the lowlatency kernel flavour at the generic kernel", () => {
+      const warning = service.getLegacyKernelWarning(
+        nodeWithKernel("6.8.0-45-lowlatency"),
+      );
+
+      expect(warning).toContain("lowlatency");
+      expect(warning).toContain("preempt=full");
+      expect(warning).toContain(
+        "https://docs.5stack.gg/servers/low-latency-kernel",
+      );
+    });
+
+    it("has nothing to say about a generic kernel", () => {
+      expect(
+        service.getLegacyKernelWarning(nodeWithKernel("7.0.0-38-generic")),
+      ).toBeUndefined();
+    });
+
+    it("has nothing to say without node info", () => {
+      expect(
+        service.getLegacyKernelWarning({ status: {} } as unknown as V1Node),
+      ).toBeUndefined();
+    });
+  });
 });

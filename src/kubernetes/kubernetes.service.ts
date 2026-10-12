@@ -302,9 +302,9 @@ export class KubernetesService {
         return true;
       }
 
-      // Newer Ubuntu dropped the lowlatency kernel flavour: linux-lowlatency
-      // boots the generic kernel with preempt=full instead. The kernel applies
-      // the last preempt= it is given.
+      // Ubuntu stopped building the lowlatency flavour in 25.04; Canonical's
+      // replacement is the generic kernel booted with preempt=full. The kernel
+      // applies the last preempt= it is given.
       const preempt = this.getKernelCommandLine()
         .split(/\s+/)
         .filter((argument) => argument.startsWith("preempt="))
@@ -315,6 +315,14 @@ export class KubernetesService {
       this.logger.error("Error getting node kernel information:", error);
       throw error;
     }
+  }
+
+  public getLegacyKernelWarning(node: V1Node): string | undefined {
+    if (!node.status?.nodeInfo?.kernelVersion.includes("lowlatency")) {
+      return undefined;
+    }
+
+    return 'This node runs Ubuntu\'s legacy "lowlatency" kernel, which Ubuntu no longer builds. Switch to the generic kernel booted with preempt=full: https://docs.5stack.gg/servers/low-latency-kernel';
   }
 
   private getKernelCommandLine() {
