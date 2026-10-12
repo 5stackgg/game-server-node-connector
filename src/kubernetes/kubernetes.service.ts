@@ -9,6 +9,7 @@ import {
   FetchError,
 } from "@kubernetes/client-node";
 import * as child_process from "node:child_process";
+import fs from "fs";
 import { NetworkService } from "src/system/network.service";
 import { ConfigService } from "@nestjs/config";
 import { NodeConfig } from "src/configs/types/NodeConfig";
@@ -297,10 +298,30 @@ export class KubernetesService {
         throw new Error("Could not get node info");
       }
 
-      return nodeInfo.kernelVersion.includes("lowlatency");
+      if (nodeInfo.kernelVersion.includes("lowlatency")) {
+        return true;
+      }
+
+      // Newer Ubuntu dropped the lowlatency kernel flavour: linux-lowlatency
+      // boots the generic kernel with preempt=full instead. The kernel applies
+      // the last preempt= it is given.
+      const preempt = this.getKernelCommandLine()
+        .split(/\s+/)
+        .filter((argument) => argument.startsWith("preempt="))
+        .pop();
+
+      return preempt === "preempt=full";
     } catch (error) {
       this.logger.error("Error getting node kernel information:", error);
       throw error;
+    }
+  }
+
+  private getKernelCommandLine() {
+    try {
+      return fs.readFileSync("/proc/cmdline", "utf8");
+    } catch {
+      return "";
     }
   }
 
