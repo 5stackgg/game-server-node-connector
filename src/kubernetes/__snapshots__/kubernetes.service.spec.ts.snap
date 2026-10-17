@@ -1,0 +1,81 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`KubernetesService getNodeStats keeps the nvidia NVIDIA payload identical: nvidia 1`] = `
+{
+  "cpuCapacity": 16,
+  "cpuInfo": {
+    "coresPerSocket": 8,
+    "threadsPerCore": 2,
+  },
+  "disks": [
+    {
+      "disk": "/data",
+    },
+  ],
+  "gpu": {
+    "count": 1,
+    "devices": [
+      {
+        "index": 0,
+        "memory_mb": 12288,
+        "name": "NVIDIA GeForce RTX 3060",
+      },
+    ],
+  },
+  "memoryAllocatable": "60Gi",
+  "memoryCapacity": "64Gi",
+  "metrics": {
+    "metadata": {
+      "name": "node-1",
+    },
+    "usage": {
+      "cpu": "100m",
+      "memory": "1Gi",
+    },
+  },
+  "network": {
+    "rx": 100,
+    "tx": 200,
+  },
+}
+`;
+
+exports[`KubernetesService getNodeStats keeps the unlabelled NVIDIA payload identical: unlabelled 1`] = `
+{
+  "cpuCapacity": 16,
+  "cpuInfo": {
+    "coresPerSocket": 8,
+    "threadsPerCore": 2,
+  },
+  "disks": [
+    {
+      "disk": "/data",
+    },
+  ],
+  "gpu": {
+    "count": 1,
+    "devices": [
+      {
+        "index": 0,
+        "memory_mb": 12288,
+        "name": "NVIDIA GeForce RTX 3060",
+      },
+    ],
+  },
+  "memoryAllocatable": "60Gi",
+  "memoryCapacity": "64Gi",
+  "metrics": {
+    "metadata": {
+      "name": "node-1",
+    },
+    "usage": {
+      "cpu": "100m",
+      "memory": "1Gi",
+    },
+  },
+  "network": {
+    "rx": 100,
+    "tx": 200,
+  },
+}
+`;

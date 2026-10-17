@@ -1,0 +1,25 @@
+name: Tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      - name: GPU discovery and node-report regression tests
+        run: npm test -- --runInBand --runTestsByPath src/kubernetes/amd-gpu.spec.ts src/kubernetes/kubernetes.service.spec.ts
+      - run: npm run build
