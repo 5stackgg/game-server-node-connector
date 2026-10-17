@@ -18,8 +18,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
-          cache: npm
-      - run: npm ci
+          cache: yarn
+          cache-dependency-path: yarn.lock
+      - run: yarn install --frozen-lockfile
       - name: GPU discovery and node-report regression tests
-        run: npm test -- --runInBand --runTestsByPath src/kubernetes/amd-gpu.spec.ts src/kubernetes/kubernetes.service.spec.ts
-      - run: npm run build
+        run: yarn test --runInBand --runTestsByPath src/kubernetes/amd-gpu.spec.ts src/kubernetes/kubernetes.service.spec.ts
+      - run: yarn build
