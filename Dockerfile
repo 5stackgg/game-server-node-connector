@@ -41,5 +41,6 @@ COPY --from=builder /build/dist ./dist
 COPY --from=builder /build/public ./public  
 COPY --from=builder /build/views ./views  
 COPY --from=builder /build/resources ./resources  
+COPY LICENSE NOTICE THIRD_PARTY_NOTICES.txt ./
 
 CMD [ "node", "dist/main.js" ]
