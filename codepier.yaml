@@ -1,5 +1,5 @@
 namespaces: [5stack]
-image: node:24
+image: node:24.22.1-bookworm
 workload: [game-server-node-connector, game-server-node-connector-nvidia]
 kind: DaemonSet
 workdir: /opt/5stack
