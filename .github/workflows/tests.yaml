@@ -1,0 +1,26 @@
+name: Tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: yarn
+          cache-dependency-path: yarn.lock
+      - run: yarn install --frozen-lockfile
+      - name: GPU discovery and node-report regression tests
+        run: yarn test --runInBand --runTestsByPath src/kubernetes/amd-gpu.spec.ts src/kubernetes/kubernetes.service.spec.ts
+      - run: yarn build

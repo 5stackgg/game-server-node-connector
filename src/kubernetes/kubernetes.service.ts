@@ -13,12 +13,14 @@ import fs from "fs";
 import { NetworkService } from "src/system/network.service";
 import { ConfigService } from "@nestjs/config";
 import { NodeConfig } from "src/configs/types/NodeConfig";
+import { AmdGpuStats, readAmdGpu } from "./amd-gpu";
 
 @Injectable()
 export class KubernetesService {
   private apiClient: CoreV1Api;
   private metricsClient: Metrics;
   private nodeName: string;
+  private readonly amdGpuWarnings = new Set<string>();
   private cpuInfo: {
     coresPerSocket: number;
     threadsPerCore: number;
@@ -106,6 +108,29 @@ export class KubernetesService {
         devices?.length ??
         (Number.isNaN(allocatableGpuCount) ? 0 : allocatableGpuCount);
 
+      const labels = node.metadata.labels ?? {};
+      let amdGpu: AmdGpuStats | undefined;
+      if (labels["5stack-gpu-vendor"] === "amd") {
+        if (labels["nvidia-gpu"] === "true") {
+          this.warnAmdGpuOnce(
+            "conflicting labels 5stack-gpu-vendor=amd and nvidia-gpu=true; using the NVIDIA path",
+          );
+        } else {
+          try {
+            const { warnings, ...reading } = readAmdGpu("/sys", {
+              integrated: labels["5stack-gpu-integrated"] === "true",
+            });
+            amdGpu = reading;
+            for (const warning of warnings) this.warnAmdGpuOnce(warning);
+          } catch (error) {
+            amdGpu = { count: 0, devices: null };
+            this.warnAmdGpuOnce(
+              `reader failed, reporting none: ${(error as Error).message}`,
+            );
+          }
+        }
+      }
+
       return {
         disks: this.getDiskStats(),
         network: this.networkService.getNetworkStats(),
@@ -117,6 +142,7 @@ export class KubernetesService {
           count: gpuCount,
           devices,
         },
+        ...(amdGpu ? { amdGpu } : {}),
         metrics: metrics.items.find(
           (nodeMetric) => nodeMetric.metadata.name === node.metadata?.name,
         ),
@@ -125,6 +151,13 @@ export class KubernetesService {
       if (error instanceof FetchError && error.code !== "404") {
         this.logger.error("Error getting node metrics:", error.message);
       }
+    }
+  }
+
+  private warnAmdGpuOnce(message: string) {
+    if (!this.amdGpuWarnings.has(message)) {
+      this.amdGpuWarnings.add(message);
+      this.logger.warn(`AMD GPU: ${message}`);
     }
   }
 
