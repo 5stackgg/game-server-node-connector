@@ -175,8 +175,12 @@ describe("KubernetesService", () => {
     it("flags a node that reserves kube-reserved on top of system-reserved", () => {
       const warning = service.getCpuReservationWarning(nodeWithCpu("8", "6"));
 
-      expect(warning).toContain("reserves 2 CPU cores");
-      expect(warning).toContain("system-reserved=cpu=1");
+      expect(warning).toMatch(
+        /^This node reserves 2 CPU cores for Kubernetes instead of 1\./,
+      );
+      expect(warning).toContain(
+        "sed -i '/kube-reserved/d' /etc/rancher/k3s/config.yaml && rm -f /var/lib/kubelet/cpu_manager_state && systemctl restart k3s-agent",
+      );
       expect(warning).toContain("https://docs.5stack.gg/servers/cpu-pinning");
     });
 

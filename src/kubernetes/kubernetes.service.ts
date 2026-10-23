@@ -342,7 +342,7 @@ export class KubernetesService {
       return undefined;
     }
 
-    return `Kubernetes reserves ${reserved} CPU cores on this node instead of 1, so it fits fewer pinned servers than the panel shows. Keep only "system-reserved=cpu=1" in /etc/rancher/k3s/config.yaml, delete /var/lib/kubelet/cpu_manager_state and restart k3s-agent: https://docs.5stack.gg/servers/cpu-pinning`;
+    return `This node reserves ${reserved} CPU cores for Kubernetes instead of 1. It fits fewer pinned servers than the panel shows. Free the extra core by running \`sed -i '/kube-reserved/d' /etc/rancher/k3s/config.yaml && rm -f /var/lib/kubelet/cpu_manager_state && systemctl restart k3s-agent\` on the node while it has no matches: https://docs.5stack.gg/servers/cpu-pinning`;
   }
 
   private getKernelCommandLine() {
