@@ -325,6 +325,26 @@ export class KubernetesService {
     return 'This node runs Ubuntu\'s legacy "lowlatency" kernel, which Ubuntu no longer builds. Switch to the generic kernel booted with preempt=full: https://docs.5stack.gg/servers/low-latency-kernel';
   }
 
+  // Game nodes reserve one core (system-reserved). The installer used to add
+  // kube-reserved as well, which costs every pinned node a server slot.
+  public getCpuReservationWarning(node: V1Node): string | undefined {
+    const capacity = this.parseCpuToMillicores(node.status?.capacity?.cpu);
+    const allocatable = this.parseCpuToMillicores(
+      node.status?.allocatable?.cpu,
+    );
+
+    if (capacity === undefined || allocatable === undefined) {
+      return undefined;
+    }
+
+    const reserved = (capacity - allocatable) / 1000;
+    if (reserved <= 1) {
+      return undefined;
+    }
+
+    return `Kubernetes reserves ${reserved} CPU cores on this node instead of 1, so it fits fewer pinned servers than the panel shows. Keep only "system-reserved=cpu=1" in /etc/rancher/k3s/config.yaml, delete /var/lib/kubelet/cpu_manager_state and restart k3s-agent: https://docs.5stack.gg/servers/cpu-pinning`;
+  }
+
   private getKernelCommandLine() {
     try {
       return fs.readFileSync("/proc/cmdline", "utf8");

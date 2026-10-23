@@ -94,6 +94,13 @@ export class SystemService {
       cpuWarnings.push(legacyKernelWarning);
     }
 
+    const cpuReservationWarning =
+      supportsCpuPinning &&
+      this.kubernetesService.getCpuReservationWarning(node);
+    if (cpuReservationWarning) {
+      cpuWarnings.push(cpuReservationWarning);
+    }
+
     for (const warning of cpuWarnings) {
       this.logger.warn(warning);
     }
