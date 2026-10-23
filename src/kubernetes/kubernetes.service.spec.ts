@@ -161,4 +161,52 @@ describe("KubernetesService", () => {
       ).toBeUndefined();
     });
   });
+
+  describe("getCpuReservationWarning", () => {
+    function nodeWithCpu(capacity: string, allocatable: string) {
+      return {
+        status: {
+          capacity: { cpu: capacity },
+          allocatable: { cpu: allocatable },
+        },
+      } as unknown as V1Node;
+    }
+
+    it("flags a node that reserves kube-reserved on top of system-reserved", () => {
+      const warning = service.getCpuReservationWarning(nodeWithCpu("8", "6"));
+
+      expect(warning).toMatch(
+        /^This node reserves 2 CPU cores for Kubernetes instead of 1\./,
+      );
+      expect(warning).toContain(
+        "sed -i '/kube-reserved/d' /etc/rancher/k3s/config.yaml && rm -f /var/lib/kubelet/cpu_manager_state && systemctl restart k3s-agent",
+      );
+      expect(warning).toContain("https://docs.5stack.gg/servers/cpu-pinning");
+    });
+
+    it("reads millicore quantities", () => {
+      expect(
+        service.getCpuReservationWarning(nodeWithCpu("16", "14500m")),
+      ).toContain("reserves 1.5 CPU cores");
+    });
+
+    it.each([
+      ["8", "7"],
+      ["8", "7500m"],
+      ["8", "8"],
+    ])(
+      "has nothing to say about %s cores with %s allocatable",
+      (capacity, allocatable) => {
+        expect(
+          service.getCpuReservationWarning(nodeWithCpu(capacity, allocatable)),
+        ).toBeUndefined();
+      },
+    );
+
+    it("has nothing to say without node status", () => {
+      expect(
+        service.getCpuReservationWarning({ status: {} } as unknown as V1Node),
+      ).toBeUndefined();
+    });
+  });
 });
